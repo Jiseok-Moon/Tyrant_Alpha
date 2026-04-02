@@ -34,12 +34,10 @@ public class PlayerController : MonoBehaviour
         // 3. 시선 처리 (스킬 사용 중이 아닐 때만 이동 방향을 바라봄)
         if (PlayerSkills.Instance != null && PlayerSkills.Instance.IsCasting)
         {
-            // 스킬 중에는 PlayerSkills에서 시선을 강제하므로 여기서는 회전을 건드리지 않습니다.
             return;
         }
 
         // 일반 이동 시 회전 (부드럽게 이동 방향 바라보기)
-        if (agent.velocity.magnitude > 0.1f)
         {
             Quaternion lookRotation = Quaternion.LookRotation(agent.velocity.normalized);
             transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation, Time.deltaTime * 15f);
