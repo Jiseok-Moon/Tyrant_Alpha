@@ -1,5 +1,6 @@
 using UnityEngine;
-using UnityEngine.AI; // NavMeshAgent 제어를 위해 필요
+using UnityEngine.AI;
+using System.Collections;
 
 public class Enemy : MonoBehaviour
 {
@@ -7,17 +8,26 @@ public class Enemy : MonoBehaviour
     private Animator anim;
     private float originalAnimSpeed;
 
-    public Transform target;           // 플레이어 타겟
-    public int contactDamage = 5;      // 충돌 데미지
-    public float damageCooldown = 1.0f; // 데미지 주기
+    [Header("Stats")]
+    public float hp = 500f;
+    public int contactDamage = 5;
+    public float damageCooldown = 1.0f;
     private float lastDamageTime;
-    private bool isStasis = false;     // 혈류 정체 상태 체크
 
+    [Header("Animation Settings")]
+    public float hitAnimCooldown = 0.5f;
+    public float minDamageForAnim = 9.0f;
+    private float lastHitAnimTime;
+
+    public Transform target;
+    private bool isStasis = false;
+    private bool isDead = false;
 
     void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
-        anim = GetComponent<Animator>();
+        anim = GetComponentInChildren<Animator>();
+
         if (anim != null) originalAnimSpeed = anim.speed;
 
         if (target == null)
@@ -29,71 +39,123 @@ public class Enemy : MonoBehaviour
 
     void Update()
     {
-        // 1. 혈류 정체 상태가 아니고, 타겟이 있다면 추격
+        if (isDead) return;
+
+        HandleMovementAnimation();
+
         if (!isStasis && target != null && agent != null && agent.enabled)
         {
             agent.SetDestination(target.position);
         }
     }
 
-    // --- 혈류 정체(Stasis) 실행 함수 ---
+    private void HandleMovementAnimation()
+    {
+        if (isStasis || anim == null) return;
+
+        float velocity = agent.velocity.magnitude;
+
+        // Bool 방식: SetBool을 사용하여 하나를 켜면 나머지는 명시적으로 꺼줘야 합니다.
+        if (velocity > 3.5f) // run
+        {
+            anim.SetBool("run", true);
+            anim.SetBool("walk", false);
+            anim.SetBool("idle01", false);
+        }
+        else if (velocity > 0.1f) // walk
+        {
+            anim.SetBool("run", false);
+            anim.SetBool("walk", true);
+            anim.SetBool("idle01", false);
+        }
+        else // idle
+        {
+            anim.SetBool("run", false);
+            anim.SetBool("walk", false);
+            anim.SetBool("idle01", true);
+        }
+    }
+
+    public void TakeDamage(float amount)
+    {
+        if (isDead) return;
+        hp -= amount;
+
+        // 피격 애니메이션 (Bool 방식)
+        if (anim != null && Time.time >= lastHitAnimTime + hitAnimCooldown)
+        {
+            if (amount >= minDamageForAnim)
+            {
+                StartCoroutine(HitAnimationRoutine());
+                lastHitAnimTime = Time.time;
+            }
+        }
+
+        if (hp <= 0) Die();
+    }
+
+    private IEnumerator HitAnimationRoutine()
+    {
+        anim.SetBool("damage", true);
+        yield return new WaitForSeconds(0.3f); // 아파하는 동작 유지 시간
+        anim.SetBool("damage", false); // 반드시 다시 꺼줘야 합니다!
+    }
+
     public void ApplyStasis(float duration)
     {
+        if (isDead) return;
         StartCoroutine(StasisRoutine(duration));
     }
 
-    private System.Collections.IEnumerator StasisRoutine(float duration)
+    private IEnumerator StasisRoutine(float duration)
     {
-
         isStasis = true;
+        if (agent != null) { agent.isStopped = true; agent.velocity = Vector3.zero; }
+        if (anim != null) anim.speed = 0;
 
-        // 1. 모든 행동 정지
-        if (agent != null)
-        {
-            agent.isStopped = true; // 이동 멈춤
-            agent.velocity = Vector3.zero;
-        }
-
-        if (anim != null)
-        {
-            anim.speed = 0; // 애니메이션 정지 (기획하신 '그 상태로 고정' 연출)
-        }
-
-        // 2. 혈류 정체 이펙트 생성 (선택 사항)
-        // Instantiate(stasisVisualEffect, transform.position, Quaternion.identity, transform);
-
-        // 3. 지속 시간만큼 대기 (1초 또는 궁극기 시 2초)
         yield return new WaitForSeconds(duration);
 
-        // 4. 상태 복구
-        if (anim != null) anim.speed = originalAnimSpeed;
-        if (agent != null) agent.isStopped = false;
-
-        isStasis = false;
+        if (!isDead)
+        {
+            if (anim != null) anim.speed = originalAnimSpeed;
+            if (agent != null) agent.isStopped = false;
+            isStasis = false;
+        }
     }
+
     private void OnTriggerStay(Collider other)
     {
-        // 정체 상태가 아닐 때만 공격함
-        if (!isStasis && other.CompareTag("Player"))
+        if (isDead || isStasis) return;
+        if (other.CompareTag("Player") && Time.time >= lastDamageTime + damageCooldown)
         {
-            if (Time.time >= lastDamageTime + damageCooldown)
+            var playerStats = other.GetComponent<PlayerStats>();
+            if (playerStats != null)
             {
-                // 기획자님의 PlayerStats 스크립트 구조에 맞춰 호출 (예시: PlayerStats)
-                var playerStats = other.GetComponent<PlayerStats>();
-                if (playerStats != null)
-                {
-                    playerStats.TakeDamage(contactDamage);
-                    lastDamageTime = Time.time;
-                    Debug.Log($"플레이어에게 {contactDamage} 피해를 입힘!");
-                }
+                playerStats.TakeDamage(contactDamage);
+                lastDamageTime = Time.time;
+                StartCoroutine(AttackAnimationRoutine());
             }
         }
     }
 
-    // 기존의 데미지 처리 함수
-    public void TakeDamage(float amount)
+    private IEnumerator AttackAnimationRoutine()
     {
-        Debug.Log($"{gameObject.name}가 {amount}의 피해를 입었습니다.");
-        // 여기서 HP가 0 이하가 되면 Destroy(gameObject) 등의 처리가 필요합니다.
+        anim.SetBool("attack01", true);
+        yield return new WaitForSeconds(0.5f);
+        anim.SetBool("attack01", false);
+    }
+
+    void Die()
+    {
+        isDead = true;
+        if (agent != null) agent.isStopped = true;
+
+        // 사망 시 모든 이동 Bool을 끄고 dead만 켭니다.
+        anim.SetBool("run", false);
+        anim.SetBool("walk", false);
+        anim.SetBool("idle01", false);
+        anim.SetBool("dead", true);
+
+        Destroy(gameObject, 3f);
     }
 }
