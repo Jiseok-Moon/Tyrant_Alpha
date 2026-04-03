@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: 7955699567635264330}
   - component: {fileID: 5743768201449882833}
   m_Layer: 6
-  m_Name: Enemy
+  m_Name: Enemy_Wolf
   m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -112,10 +112,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1f7daf9c30eceef46be7d3e75b2cfdcb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  target: {fileID: 0}
-  hp: 100
+  bleedParticlePrefab: {fileID: 0}
+  hp: 800
   contactDamage: 5
   damageCooldown: 1
+  hitAnimCooldown: 0.5
+  minDamageForAnim: 9
+  detectionRange: 10
+  enragedDetectionRange: 25
+  attackRange: 2.5
+  patrolRange: 8
+  target: {fileID: 0}
 --- !u!114 &7955699567635264330
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -130,6 +137,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   currentStacks: 0
   timer: 0
+  bleedEffectPrefab: {fileID: 3911406622213043493, guid: f2d2daf08f792024b931d48729511836,
+    type: 3}
 --- !u!195 &5743768201449882833
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -149,7 +158,7 @@ NavMeshAgent:
   m_AutoBraking: 1
   m_AutoRepath: 1
   m_Height: 1
-  m_BaseOffset: 0.5
+  m_BaseOffset: 0.1
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
 --- !u!1001 &9003507021959003865
@@ -220,6 +229,10 @@ PrefabInstance:
       propertyPath: m_Controller
       value: 
       objectReference: {fileID: 9100000, guid: f016feed226515f41939f2dbd6392449, type: 2}
+    - target: {fileID: 13700000, guid: c95dabe0c74542b4e9b97794b2369a37, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: 604a44669b9e64f48ab34a8084c5fada, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

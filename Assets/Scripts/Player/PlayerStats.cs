@@ -11,10 +11,12 @@ public class PlayerStats : MonoBehaviour
     public Slider hpSlider;
     public TextMeshProUGUI hpText;
     public float lerpSpeed = 5f;
+    private bool isDead = false;
 
     void Awake()
     {
         currentHp = maxHp;
+        isDead = false; // 초기화
         if (hpSlider != null)
         {
             hpSlider.maxValue = maxHp;
@@ -65,6 +67,7 @@ public class PlayerStats : MonoBehaviour
     /// </summary>
     public bool UseSkillHp(float amount)
     {
+        if (isDead) return false;
         float safetyLimit = maxHp * 0.05f; // 최대 체력의 5%
 
         // 1. 현재 체력이 5% 이하라면 소모 없이 즉시 통과
@@ -80,11 +83,30 @@ public class PlayerStats : MonoBehaviour
         return true;
     }
 
-    // --- [기존 함수 유지] ---
+    /// <summary>
+    /// R 스킬처럼 지속적으로 체력을 깎을 때 사용하는 함수입니다.
+    /// 마지노선(5%) 이하로는 절대 내려가지 않게 방어합니다.
+    /// </summary>
+    public void ReduceHpContinuous(float amount)
+    {
+        if (isDead) return;
+
+        float safetyLimit = maxHp * 0.05f;
+
+        // 현재 체력이 이미 5% 이하라면 더 이상 깎지 않고 리턴
+        if (currentHp <= safetyLimit) return;
+
+        // 체력을 깎되, safetyLimit(5%) 아래로 떨어지지 않게 Clamp
+        currentHp = Mathf.Clamp(currentHp - amount, safetyLimit, maxHp);
+    }
+
+    // 기존에 사용하던 ReduceHp도 안전하게 변경 (선택 사항)
     public void ReduceHp(float amount)
     {
-        currentHp = Mathf.Max(currentHp - amount, 0);
+        float safetyLimit = maxHp * 0.05f;
+        currentHp = Mathf.Clamp(currentHp - amount, safetyLimit, maxHp);
     }
+
 
     public void ReduceHpPercent(float percent)
     {
@@ -98,8 +120,13 @@ public class PlayerStats : MonoBehaviour
 
     public void TakeDamage(int damage)
     {
+        if (isDead) return;
         currentHp -= damage;
-        if (currentHp < 0) currentHp = 0;
+        if (currentHp < 0)
+        {
+            currentHp = 0;
+            Die();
+        }
     }
 
     public void UpdateHPBar()
@@ -108,5 +135,15 @@ public class PlayerStats : MonoBehaviour
         {
             hpSlider.maxValue = maxHp;
         }
+    }
+
+    private void Die()
+    {
+        if (isDead) return;
+
+        isDead = true;
+        Debug.Log("<color=red>캐릭터가 사망하였습니다.</color>");
+        Time.timeScale = 0f;
+
     }
 }

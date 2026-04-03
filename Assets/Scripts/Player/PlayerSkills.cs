@@ -270,7 +270,14 @@ public class PlayerSkills : MonoBehaviour
         {
             elapsed += Time.deltaTime;
             tickTimer += Time.deltaTime;
-            if (tickTimer >= 1f) { stats.UseSkillHp(Mathf.RoundToInt(stats.maxHp * 0.06f)); tickTimer = 0f; }
+
+            if (tickTimer >= 1f)
+            {
+                float drainAmount = stats.maxHp * 0.06f;
+                stats.ReduceHpContinuous(drainAmount);
+
+                tickTimer = 0f;
+            }
             yield return null;
         }
 

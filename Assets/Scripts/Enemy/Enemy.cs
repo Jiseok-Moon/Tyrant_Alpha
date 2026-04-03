@@ -1,32 +1,56 @@
 using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
+using System.Collections.Generic;
 
 public class Enemy : MonoBehaviour
 {
-    private NavMeshAgent agent;
-    private Animator anim;
+
+    private static List<Enemy> allEnemies = new List<Enemy>();
+
+    [Header("무리 설정")]
+    public string enemyID = "Wolf"; // 인스펙터에서 늑대는 "Wolf", 트롤은 "Troll"로 설정
+
+    protected NavMeshAgent agent;
+    protected Animator anim;
     private float originalAnimSpeed;
+    protected string attackAnimName = "attack01";
+
+    [Header("이펙트")]
+    public GameObject bleedParticlePrefab;
 
     [Header("Stats")]
-    public float hp = 500f;
+    public float hp = 1500f;
     public int contactDamage = 5;
-    public float damageCooldown = 1.0f;
+    public float damageCooldown = 1.5f;
     private float lastDamageTime;
 
     [Header("Animation Settings")]
     public float hitAnimCooldown = 0.5f;
-    public float minDamageForAnim = 9.0f;
-    private float lastHitAnimTime;
+    public float minDamageForAnim = 10f;
+    protected float lastHitAnimTime;
+
+    [Header("AI 설정 (인식/정찰)")]
+    public float detectionRange = 10f;      // 평상시 인식 범위
+    public float enragedDetectionRange = 25f; // 피격 시 확장될 범위
+    public float attackRange = 2.5f;
+    public float patrolRange = 8f;          // 정찰 범위
+    private Vector3 startPosition;          // 정찰 기준점
+    private bool isPlayerDetected = false;  // 인식 여부 플래그
 
     public Transform target;
     private bool isStasis = false;
-    private bool isDead = false;
+    protected bool isDead = false;
+    private bool isAttacking = false;
 
-    void Awake()
+    protected virtual void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
         anim = GetComponentInChildren<Animator>();
+        startPosition = transform.position; // 시작 위치 저장
+
+
+        if (!allEnemies.Contains(this)) allEnemies.Add(this);
 
         if (anim != null) originalAnimSpeed = anim.speed;
 
@@ -36,52 +60,98 @@ public class Enemy : MonoBehaviour
             if (player != null) target = player.transform;
         }
     }
+    protected void OnDestroy()
+    {
+        if (allEnemies.Contains(this)) allEnemies.Remove(this);
+    }
 
     void Update()
     {
-        if (isDead) return;
+        if (isDead || isStasis) return;
+
+        float distance = Vector3.Distance(transform.position, target.position);
+
+        // 1. 인식 로직: 거리 안에 들어오면 인식 시작
+        if (distance <= detectionRange)
+        {
+            // 내가 발견하면 무리 전체에게 알림
+            AlertPack();
+        }
+        // 2. 행동 분기
+        if (isPlayerDetected)
+        {
+            if (distance <= attackRange)
+            {
+                StopAndAttack();
+            }
+            else if (!isAttacking)
+            {
+                ChaseTarget();
+            }
+        }
+        else
+        {
+            Patrol(); // 인식 전에는 정찰
+        }
 
         HandleMovementAnimation();
+    }
 
-        if (!isStasis && target != null && agent != null && agent.enabled)
+    // 무리 전체를 인식 상태로 만드는 함수
+    public void AlertPack()
+    {
+        foreach (Enemy enemy in allEnemies)
         {
+            if (enemy != null && !enemy.isDead && enemy.enemyID == this.enemyID)
+            {
+                enemy.isPlayerDetected = true;
+                enemy.detectionRange = enemy.enragedDetectionRange;
+            }
+        }
+    }
+
+    private void Patrol()
+    {
+        // 목적지에 거의 도착했거나 경로 계산이 끝났을 때 새로운 지점 설정
+        if (agent != null && agent.enabled && !agent.pathPending && agent.remainingDistance < 0.5f)
+        {
+            Vector2 randomCircle = Random.insideUnitCircle * patrolRange;
+            Vector3 nextDest = startPosition + new Vector3(randomCircle.x, 0, randomCircle.y);
+            agent.SetDestination(nextDest);
+        }
+    }
+
+    private void ChaseTarget()
+    {
+        if (agent != null && agent.enabled)
+        {
+            agent.isStopped = false;
             agent.SetDestination(target.position);
         }
     }
 
-    private void HandleMovementAnimation()
+    private void StopAndAttack()
     {
-        if (isStasis || anim == null) return;
-
-        float velocity = agent.velocity.magnitude;
-
-        // Bool 방식: SetBool을 사용하여 하나를 켜면 나머지는 명시적으로 꺼줘야 합니다.
-        if (velocity > 3.5f) // run
+        if (agent != null && agent.enabled)
         {
-            anim.SetBool("run", true);
-            anim.SetBool("walk", false);
-            anim.SetBool("idle01", false);
+            agent.isStopped = true;
+            agent.velocity = Vector3.zero;
         }
-        else if (velocity > 0.1f) // walk
+
+        if (Time.time >= lastDamageTime + damageCooldown && !isAttacking)
         {
-            anim.SetBool("run", false);
-            anim.SetBool("walk", true);
-            anim.SetBool("idle01", false);
-        }
-        else // idle
-        {
-            anim.SetBool("run", false);
-            anim.SetBool("walk", false);
-            anim.SetBool("idle01", true);
+            StartCoroutine(AttackAnimationRoutine());
         }
     }
 
-    public void TakeDamage(float amount)
+    public virtual void TakeDamage(float amount)
     {
         if (isDead) return;
         hp -= amount;
 
-        // 피격 애니메이션 (Bool 방식)
+        // 한 마리라도 맞으면 무리 전체가 공격
+        AlertPack();
+
         if (anim != null && Time.time >= lastHitAnimTime + hitAnimCooldown)
         {
             if (amount >= minDamageForAnim)
@@ -90,72 +160,95 @@ public class Enemy : MonoBehaviour
                 lastHitAnimTime = Time.time;
             }
         }
-
         if (hp <= 0) Die();
     }
 
-    private IEnumerator HitAnimationRoutine()
+    // --- 아래의 Stasis, HitAnimation, Die, MovementAnimation은 기존과 동일 ---
+    // (코드 중복 방지를 위해 내용은 동일하게 유지하시면 됩니다)
+
+    private void HandleMovementAnimation()
     {
-        anim.SetBool("damage", true);
-        yield return new WaitForSeconds(0.3f); // 아파하는 동작 유지 시간
-        anim.SetBool("damage", false); // 반드시 다시 꺼줘야 합니다!
-    }
-
-    public void ApplyStasis(float duration)
-    {
-        if (isDead) return;
-        StartCoroutine(StasisRoutine(duration));
-    }
-
-    private IEnumerator StasisRoutine(float duration)
-    {
-        isStasis = true;
-        if (agent != null) { agent.isStopped = true; agent.velocity = Vector3.zero; }
-        if (anim != null) anim.speed = 0;
-
-        yield return new WaitForSeconds(duration);
-
-        if (!isDead)
+        if (anim == null) return;
+        float velocity = agent.velocity.magnitude;
+        if (isAttacking || velocity < 0.1f)
         {
-            if (anim != null) anim.speed = originalAnimSpeed;
-            if (agent != null) agent.isStopped = false;
-            isStasis = false;
+            anim.SetBool("run", false); anim.SetBool("walk", false); anim.SetBool("idle01", true);
         }
-    }
-
-    private void OnTriggerStay(Collider other)
-    {
-        if (isDead || isStasis) return;
-        if (other.CompareTag("Player") && Time.time >= lastDamageTime + damageCooldown)
+        else if (velocity > 3.5f)
         {
-            var playerStats = other.GetComponent<PlayerStats>();
-            if (playerStats != null)
-            {
-                playerStats.TakeDamage(contactDamage);
-                lastDamageTime = Time.time;
-                StartCoroutine(AttackAnimationRoutine());
-            }
+            anim.SetBool("run", true); anim.SetBool("walk", false); anim.SetBool("idle01", false);
+        }
+        else
+        {
+            anim.SetBool("run", false); anim.SetBool("walk", true); anim.SetBool("idle01", false);
         }
     }
 
     private IEnumerator AttackAnimationRoutine()
     {
-        anim.SetBool("attack01", true);
-        yield return new WaitForSeconds(0.5f);
-        anim.SetBool("attack01", false);
+        isAttacking = true;
+        lastDamageTime = Time.time;
+        transform.LookAt(new Vector3(target.position.x, transform.position.y, target.position.z));
+        if (anim != null) anim.SetBool(attackAnimName, true);
+        target.GetComponent<PlayerStats>()?.TakeDamage(contactDamage);
+        yield return new WaitForSeconds(0.8f);
+        if (anim != null) anim.SetBool(attackAnimName, false);
+        isAttacking = false;
     }
 
-    void Die()
+    public void ApplyStasis(float duration) { StartCoroutine(StasisRoutine(duration)); }
+    private IEnumerator StasisRoutine(float duration)
+    {
+        isStasis = true;
+        if (agent != null && agent.enabled) { agent.isStopped = true; agent.velocity = Vector3.zero; }
+        if (anim != null) anim.speed = 0;
+        yield return new WaitForSeconds(duration);
+        if (!isDead)
+        {
+            if (anim != null) anim.speed = originalAnimSpeed;
+            if (agent != null && agent.enabled) agent.isStopped = false;
+            isStasis = false;
+        }
+    }
+
+    protected IEnumerator HitAnimationRoutine()
+    {
+        anim.SetBool("damage", true);
+        yield return new WaitForSeconds(0.3f);
+        anim.SetBool("damage", false);
+    }
+
+    protected void Die()
     {
         isDead = true;
-        if (agent != null) agent.isStopped = true;
 
-        // 사망 시 모든 이동 Bool을 끄고 dead만 켭니다.
-        anim.SetBool("run", false);
-        anim.SetBool("walk", false);
-        anim.SetBool("idle01", false);
-        anim.SetBool("dead", true);
+        if (agent != null && agent.enabled)
+        {
+            agent.isStopped = true;
+            agent.velocity = Vector3.zero;
+        }
+
+        if (anim != null)
+        {
+            anim.SetBool("run", false);
+            anim.SetBool("walk", false);
+            anim.SetBool("idle01", false);
+            anim.SetBool("dead", true);
+        }
+
+        if (allEnemies.Contains(this))
+        {
+            allEnemies.Remove(this);
+        }
 
         Destroy(gameObject, 3f);
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireSphere(transform.position, detectionRange);
+        Gizmos.color = Color.blue;
+        Gizmos.DrawWireSphere(startPosition, patrolRange);
     }
 }

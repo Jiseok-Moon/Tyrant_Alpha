@@ -9,10 +9,14 @@ public class BleedStatus : MonoBehaviour
     public float timer; // [확인용 public]
     private bool isTickRunning = false; // 코루틴 중복 실행 방지 플래그
 
+    public GameObject bleedEffectPrefab;
+
     public void AddStack()
     {
         if (currentStacks < maxStacks) currentStacks++;
         timer = duration;
+
+        SpawnBleedEffect(0.8f);
 
         // [중요] 코루틴이 멈춰있다면 다시 돌립니다.
         if (!isTickRunning)
@@ -31,7 +35,10 @@ public class BleedStatus : MonoBehaviour
             
             int intDamage = Mathf.RoundToInt(1f + currentStacks);
             GetComponent<Enemy>()?.TakeDamage(intDamage);
-            yield return new WaitForSeconds(2.0f);
+
+            float effectScale = 1f + (currentStacks * 0.3f);
+            SpawnBleedEffect(effectScale);
+            yield return new WaitForSeconds(1.5f);
 
             // --- F 스킬 연동 부분 ---
             if (PlayerSkills.Instance != null && PlayerSkills.Instance.isF_Active)
@@ -52,6 +59,19 @@ public class BleedStatus : MonoBehaviour
         // 타이머가 다 되면 상태 초기화 후 코루틴 종료
         currentStacks = 0;
         isTickRunning = false;
+    }
+
+    void SpawnBleedEffect(float scale)
+    {
+        if (bleedEffectPrefab == null) return;
+
+        // 늑대의 위치보다 약간 위(허리/등 부분)에서 생성
+        GameObject effect = Instantiate(bleedEffectPrefab, transform.position + Vector3.up * 0.8f, Quaternion.identity, this.transform);
+
+        // 파티클 시스템의 Scaling Mode가 Hierarchy여야 작동합니다!
+        effect.transform.localScale = Vector3.one * scale;
+
+        Destroy(effect, 1f);
     }
 
     void Update()
