@@ -43,6 +43,13 @@ public class Enemy : MonoBehaviour
     protected bool isDead = false;
     private bool isAttacking = false;
 
+    [Header("공격 타이밍 설정")]
+    [Tooltip("애니메이션 시작 후 실제 데미지가 들어가는 시점(초)")]
+    public float hitDelay = 0.3f;
+
+    [Tooltip("데미지 판정 후 애니메이션이 마무리될 때까지 기다리는 시간(초)")]
+    public float postAttackDelay = 0.7f;
+
     protected virtual void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
@@ -184,14 +191,22 @@ public class Enemy : MonoBehaviour
         }
     }
 
-    private IEnumerator AttackAnimationRoutine()
+    protected virtual IEnumerator AttackAnimationRoutine()
     {
         isAttacking = true;
         lastDamageTime = Time.time;
+
         transform.LookAt(new Vector3(target.position.x, transform.position.y, target.position.z));
         if (anim != null) anim.SetBool(attackAnimName, true);
-        target.GetComponent<PlayerStats>()?.TakeDamage(contactDamage);
-        yield return new WaitForSeconds(0.8f);
+
+        yield return new WaitForSeconds(hitDelay);
+
+        float currentDist = Vector3.Distance(transform.position, target.position);
+        if (currentDist <= attackRange + 0.5f)
+        {
+            target.GetComponent<PlayerStats>()?.TakeDamage(contactDamage);
+        }
+        yield return new WaitForSeconds(postAttackDelay);
         if (anim != null) anim.SetBool(attackAnimName, false);
         isAttacking = false;
     }

@@ -125,6 +125,8 @@ MonoBehaviour:
   attackRange: 4
   patrolRange: 8
   target: {fileID: 0}
+  hitDelay: 1
+  postAttackDelay: 1
   superArmorThreshold: 30
 --- !u!114 &5660231350992943669
 MonoBehaviour:

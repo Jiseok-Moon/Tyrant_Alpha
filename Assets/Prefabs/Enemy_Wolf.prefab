@@ -112,7 +112,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1f7daf9c30eceef46be7d3e75b2cfdcb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  bleedParticlePrefab: {fileID: 0}
+  enemyID: Wolf
+  bleedParticlePrefab: {fileID: 3911406622213043493, guid: f2d2daf08f792024b931d48729511836,
+    type: 3}
   hp: 800
   contactDamage: 5
   damageCooldown: 1
@@ -123,6 +125,8 @@ MonoBehaviour:
   attackRange: 2.5
   patrolRange: 8
   target: {fileID: 0}
+  hitDelay: 0.25
+  postAttackDelay: 0.5
 --- !u!114 &7955699567635264330
 MonoBehaviour:
   m_ObjectHideFlags: 0
