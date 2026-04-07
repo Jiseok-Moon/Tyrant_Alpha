@@ -10,16 +10,16 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4068102ec3b7b2a488861243101c359d, type: 3}
-  m_Name: Item_SutureKit
+  m_Name: Item_Shriveled Wolfsbane Root
   m_EditorClassIdentifier: 
-  itemName: SutureKit
-  icon: {fileID: 21300000, guid: df2b0f594923f0544b5bb6f02cb3eb0c, type: 3}
+  itemName: Item_Shriveled Wolfsbane Root
+  icon: {fileID: 21300000, guid: e5f45ca85577a274baeb01a5811f4c57, type: 3}
   description: 
   itemType: 0
-  castTime: 2
-  speedMultiplier: 0.5
+  castTime: 0.5
+  speedMultiplier: 0.7
   cooldown: 0
-  healAmount: 5
+  healAmount: 0
   moveSpeedBoost: 0
-  duration: 0
-  damageBoost: 0
+  duration: 5
+  damageBoost: 5
