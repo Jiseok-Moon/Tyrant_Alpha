@@ -3,13 +3,13 @@ using System.Collections.Generic;
 
 public class BloodStreamRenderer : MonoBehaviour
 {
-    public Material lineMaterial; // 진한 검붉은색 마테리얼
+    public Material lineMaterial;
     private PlayerSkills playerSkills;
 
-    // 현재 공중에 떠서 날아오고 있는 물줄기들의 정보
+    // 현재 공중에 떠서 날아오고 있는 핏줄기들의 정보(F스킬)
     private List<BloodStreamInfo> activeStreams = new List<BloodStreamInfo>();
 
-    // 물줄기 하나의 정보를 담는 내부 클래스
+    // 핏줄기 하나의 정보를 담는 내부 클래스
     class BloodStreamInfo
     {
         public LineRenderer line;
@@ -24,12 +24,12 @@ public class BloodStreamRenderer : MonoBehaviour
 
     void Update()
     {
-        // F 스킬이 켜져 있을 때만 물줄기들을 업데이트
+        // F 스킬이 켜져 있을 때만 핏줄기들을 업데이트
         if (playerSkills.isF_Active) UpdateActiveStreams();
         else ClearAllStreams();
     }
 
-    // [핵심] BleedStatus에서 1초마다 호출하여 새 물줄기를 '발사'함
+    // BleedStatus에서 정해진 시간마다 호출하여 핏줄기 발사
     public void SpawnStream(Transform enemy, float amount, int stackIndex)
     {
         // 1. 새로운 LineRenderer 오브젝트 생성
@@ -49,7 +49,7 @@ public class BloodStreamRenderer : MonoBehaviour
         Vector3 randomOffset = Vector3.up * 2f + Random.insideUnitSphere * 1f;
 
 
-        // 4. 물줄기 정보 등록
+        // 4. 핏줄기 정보 등록
         activeStreams.Add(new BloodStreamInfo
         {
             line = lr,
@@ -72,7 +72,7 @@ public class BloodStreamRenderer : MonoBehaviour
             // 곡선의 시작점과 끝점을 시간에 따라 유동적으로 계산
             DrawFlowingCurve(stream);
 
-            // 물줄기가 내 몸에 완전히 닿으면 흡수
+            // 핏줄기가 내 몸에 완전히 닿으면 흡수
             if (stream.currentT >= 1f)
             {
                 playerSkills.stats.Heal(Mathf.RoundToInt(stream.healAmount));
@@ -82,7 +82,10 @@ public class BloodStreamRenderer : MonoBehaviour
         }
     }
 
-    // [연출 핵심] 정적인 곡선이 아니라, 시간에 따라 곡선 위를 이동하는 '덩어리'를 그림
+    // [기획 의도] '흡혈'의 시각적 극대화. 
+    // 단순한 UI 수치 변화가 아닌, 적에게서 플레이어에게 직접 에너지가 전달되는 과정을 
+    // 2차 베지어 곡선(Bezier Curve) 기반의 핏줄기 시스템으로 시각화하여 플레이 만족도를 높임.
+    // 정적인 곡선이 아니라, 시간에 따라 곡선 위를 이동하는 [핏줄기]를 그림
     void DrawFlowingCurve(BloodStreamInfo stream)
     {
         LineRenderer lr = stream.line;
@@ -92,6 +95,8 @@ public class BloodStreamRenderer : MonoBehaviour
         Vector3 p1 = stream.controlPoint; // 곡점
         Vector3 p2 = stream.endTarget.position + Vector3.up * 0.05f; // 나
 
+        // [수학적 설계] 각 핏줄기에 미세한 시간차(t)와 랜덤 오프셋을 부여하여 
+        // 여러 적에게서 동시에 흡혈할 때 자연스러운 유동체 느낌이 나도록 구현함.
         for (int i = 0; i < points; i++)
         {
             // 각 점마다 다른 시간차(`t`)를 주어 물줄기의 길이감을 만듦

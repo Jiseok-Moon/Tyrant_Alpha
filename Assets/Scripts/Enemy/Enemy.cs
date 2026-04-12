@@ -3,13 +3,14 @@ using UnityEngine.AI;
 using System.Collections;
 using System.Collections.Generic;
 
+
 public class Enemy : MonoBehaviour
 {
 
     private static List<Enemy> allEnemies = new List<Enemy>();
 
     [Header("무리 설정")]
-    public string enemyID = "Wolf"; // 인스펙터에서 늑대는 "Wolf", 트롤은 "Troll"로 설정
+    public string enemyID = "Wolf"; // 늑대는 "Wolf", 트롤은 "Troll"로 설정
 
     protected NavMeshAgent agent;
     protected Animator anim;
@@ -43,6 +44,10 @@ public class Enemy : MonoBehaviour
     protected bool isDead = false;
     private bool isAttacking = false;
 
+
+    // [데이터 관리] Inspector에서 기획자가 애니메이션 딜레이와 실제 데미지 판정 시점(Hit Delay)을 
+    // 프레임 단위로 미세하게 조정할 수 있도록 변수 노출.
+
     [Header("공격 타이밍 설정")]
     [Tooltip("애니메이션 시작 후 실제 데미지가 들어가는 시점(초)")]
     public float hitDelay = 0.3f;
@@ -72,6 +77,9 @@ public class Enemy : MonoBehaviour
         if (allEnemies.Contains(this)) allEnemies.Remove(this);
     }
 
+
+    // [기획 의도] 무리 지어 행동하는 적(Pack AI)의 특성을 구현. 
+    // 한 개체만 피격되어도 근처의 동일 ID 적들이 인지 범위(Detection Range)를 확장하며 협동 공격을 하도록 설계함.
     void Update()
     {
         if (isDead || isStasis) return;
@@ -151,6 +159,8 @@ public class Enemy : MonoBehaviour
         }
     }
 
+    // [확장성] virtual 메서드(TakeDamage, HitAnimationRoutine)를 통해 
+    // 다양한 적(Heavy, Fast, Boss 등)을 상속만으로 빠르게 생성할 수 있는 구조 구축.
     public virtual void TakeDamage(float amount)
     {
         if (isDead) return;
@@ -170,8 +180,7 @@ public class Enemy : MonoBehaviour
         if (hp <= 0) Die();
     }
 
-    // --- 아래의 Stasis, HitAnimation, Die, MovementAnimation은 기존과 동일 ---
-    // (코드 중복 방지를 위해 내용은 동일하게 유지하시면 됩니다)
+
 
     private void HandleMovementAnimation()
     {
@@ -226,11 +235,28 @@ public class Enemy : MonoBehaviour
         }
     }
 
-    protected IEnumerator HitAnimationRoutine()
+    protected virtual IEnumerator HitAnimationRoutine()
     {
+        // 1. 공격받는 순간 멈춤
+        if (agent != null && agent.enabled)
+        {
+            agent.isStopped = true;   // AI 경로 추적 중지
+            agent.velocity = Vector3.zero; // 물리적인 미끄러짐 방지
+        }
+
+        // 2. 피격 애니메이션 재생
         anim.SetBool("damage", true);
-        yield return new WaitForSeconds(0.3f);
+
+        // 경직 시간
+        yield return new WaitForSeconds(0.4f);
+
         anim.SetBool("damage", false);
+
+        // 3. 경직이 끝난 후 다시 움직이게 함 (죽지 않았을 때만)
+        if (!isDead && agent != null && agent.enabled)
+        {
+            agent.isStopped = false;
+        }
     }
 
     protected void Die()

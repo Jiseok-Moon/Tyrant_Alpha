@@ -8,7 +8,7 @@ public class PlayerSkills : MonoBehaviour
     public PlayerStats stats;
     public GameObject qPrefab, wBudPrefab, wPetalPrefab;
     public Transform qSocket;
-    public enum SkillType { Q, W, E, R } // R 추가
+    public enum SkillType { Q, W, E, R }
     private NavMeshAgent agent;
     private Animator anim;
     private Coroutine activeSkillCoroutine;
@@ -61,7 +61,7 @@ public class PlayerSkills : MonoBehaviour
         GameObject targetEnemy = hasTarget ? hit.collider.gameObject : null;
         UpdateCursorVisual(hasTarget);
 
-        // 마우스 우클릭 시 스킬 이동/시전 취소
+        // 마우스 우클릭 시 스킬 이동
         if (Input.GetMouseButtonDown(1))
         {
             if (activeSkillCoroutine != null)
@@ -90,7 +90,7 @@ public class PlayerSkills : MonoBehaviour
             activeSkillCoroutine = StartCoroutine(MoveAndCast(targetEnemy.transform.position, targetEnemy, SkillType.E));
         }
 
-        // R, F 스킬 로직 (기존 유지)
+        // R, F 스킬 로직
         if (Input.GetKeyDown(KeyCode.R) && rTimer <= 0) StartCoroutine(CastR());
         if (Input.GetKeyDown(KeyCode.F) && fTimer <= 0)
         {
@@ -191,7 +191,7 @@ public class PlayerSkills : MonoBehaviour
         wTimer = wMaxCD;
         Destroy(bud);
 
-        // 발사 로직 (기존 유지)
+        // 발사 로직
         int petalCount = 30;
         for (int i = 0; i < petalCount; i++)
         {
@@ -200,7 +200,7 @@ public class PlayerSkills : MonoBehaviour
             pObj.GetComponent<PetalMove>()?.Init(3f);
         }
 
-        // 데미지 처리 (기존 유지)
+        // 데미지 처리
         int finalDmg = Mathf.RoundToInt(isMonarch ? Mathf.Lerp(30, 60, charge / 2) : Mathf.Lerp(15, 45, charge / 2));
         Collider[] enemies = Physics.OverlapSphere(targetPos, 3f);
         foreach (var e in enemies)
@@ -235,7 +235,10 @@ public class PlayerSkills : MonoBehaviour
         activeSkillCoroutine = null;
     }
 
-    // --- R 스킬 (기존 유지) ---
+    // --- R 스킬  ---
+    // [매커니즘] 'Monarch(군주)' 상태 변환 시스템.
+    // 궁극기(R) 사용 시 스킬의 메커니즘이 강화(예: Q탄환수 증가, E스태시스 시간 증가)되는 
+    // 2단계 스킬 구조를 통해 전투의 완급조절을 기획함.
     IEnumerator CastR()
     {
         if (agent != null) { agent.isStopped = true; agent.velocity = Vector3.zero; }
