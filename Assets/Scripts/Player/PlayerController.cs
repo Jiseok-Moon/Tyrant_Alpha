@@ -40,7 +40,7 @@ public class PlayerController : MonoBehaviour
         anim.SetFloat("InputZ", localVelocity.z / agent.speed, 0.1f, Time.deltaTime);
 
         // 3. 시선 처리 (스킬 사용 중이 아닐 때만 이동 방향을 바라봄)
-        if (PlayerSkills.Instance != null && PlayerSkills.Instance.IsCasting)
+        if (PlayerSkills_BloodMage.Instance != null && PlayerSkills_BloodMage.Instance.IsCasting)
         {
             return;
         }

@@ -13,9 +13,9 @@ public class SkillCoolUI : MonoBehaviour
     public Image coolOverlay;
     public TextMeshProUGUI coolText;
 
-    private PlayerSkills player;
+    private PlayerSkills_BloodMage player;
 
-    void Start() => player = PlayerSkills.Instance;
+    void Start() => player = PlayerSkills_BloodMage.Instance;
 
     void Update()
     {

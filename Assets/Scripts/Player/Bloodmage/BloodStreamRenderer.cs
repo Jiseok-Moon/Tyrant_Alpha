@@ -4,7 +4,7 @@ using System.Collections.Generic;
 public class BloodStreamRenderer : MonoBehaviour
 {
     public Material lineMaterial;
-    private PlayerSkills playerSkills;
+    private PlayerSkills_BloodMage playerSkills;
 
     // 현재 공중에 떠서 날아오고 있는 핏줄기들의 정보(F스킬)
     private List<BloodStreamInfo> activeStreams = new List<BloodStreamInfo>();
@@ -20,7 +20,7 @@ public class BloodStreamRenderer : MonoBehaviour
         public float healAmount;
     }
 
-    void Start() => playerSkills = GetComponent<PlayerSkills>();
+    void Start() => playerSkills = GetComponent<PlayerSkills_BloodMage>();
 
     void Update()
     {

@@ -3636,6 +3636,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: Enemy_Wolf (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 5273504187627046300, guid: a783fc7d43b0d2b45b12a263af20250d,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -4099,6 +4104,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: Enemy_Wolf
+      objectReference: {fileID: 0}
+    - target: {fileID: 5273504187627046300, guid: a783fc7d43b0d2b45b12a263af20250d,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -5380,8 +5390,6 @@ GameObject:
   - component: {fileID: 1312617198}
   - component: {fileID: 1312617201}
   - component: {fileID: 1312617200}
-  - component: {fileID: 1312617202}
-  - component: {fileID: 1312617203}
   - component: {fileID: 1312617204}
   - component: {fileID: 1312617205}
   - component: {fileID: 1312617206}
@@ -5516,7 +5524,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 902ac7427d57687429b720eafc59e594, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxHp: 100
+  maxHp: 150
   currentHp: 0
   hpSlider: {fileID: 1270160967}
   hpText: {fileID: 623605558}
@@ -5537,62 +5545,6 @@ MonoBehaviour:
   floorLayer:
     serializedVersion: 2
     m_Bits: 8
---- !u!114 &1312617202
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1312617192}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a5eb49893da669e4d844c4dfa65493ce, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  stats: {fileID: 1312617200}
-  qPrefab: {fileID: 5938053339878262849, guid: 6d204f58c74d81c42b597bf5d3fe22fd, type: 3}
-  wBudPrefab: {fileID: 1676855610406080427, guid: 5bd04ffaf2039004d9a7723c21225c3e,
-    type: 3}
-  wPetalPrefab: {fileID: 4594475174458576719, guid: 22a0283be6058c841933d82e5e9d5a65,
-    type: 3}
-  qSocket: {fileID: 206407541}
-  fActiveEffect: {fileID: 883409239}
-  normalCursor: {fileID: 2800000, guid: a5f9cc9a5efbe894eb85de4851711ba8, type: 3}
-  targetCursor: {fileID: 2800000, guid: 24d21e256b498a944a00e2527ed7618c, type: 3}
-  cursorHotspot: {x: 16, y: 16}
-  qMaxCD: 1
-  wMaxCD: 4
-  eMaxCD: 15
-  rMaxCD: 30
-  fMaxCD: 3
-  qTimer: 0
-  wTimer: 0
-  eTimer: 0
-  rTimer: 0
-  fTimer: 0
-  isF_Active: 0
-  qRange: 7
-  wRange: 5
-  eRange: 9
-  fRange: 7
-  rRange: 8
-  magicCirclePrefab: {fileID: 2329791384399759535, guid: 90527cdcdb6661c489ade259b12c93f7,
-    type: 3}
-  bloodNovaPrefab: {fileID: 9192642943680822722, guid: 8070d8981e0c5bc4091075d7a15e6f0b,
-    type: 3}
---- !u!114 &1312617203
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1312617192}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d8e3ffe453b219c49859cfab3aeeb882, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  lineMaterial: {fileID: 2100000, guid: d81272b32f38e7e419202b21cce7a702, type: 2}
 --- !u!54 &1312617204
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -6665,6 +6617,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: Enemy_Wolf (2)
       objectReference: {fileID: 0}
+    - target: {fileID: 5273504187627046300, guid: a783fc7d43b0d2b45b12a263af20250d,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -7629,6 +7586,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: Enemy_Troll
+      objectReference: {fileID: 0}
+    - target: {fileID: 8184591276917047063, guid: fba899b577d51464e9e00a6018dd5751,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

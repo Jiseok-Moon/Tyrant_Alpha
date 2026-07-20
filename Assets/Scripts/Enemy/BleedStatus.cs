@@ -44,12 +44,12 @@ public class BleedStatus : MonoBehaviour
             yield return new WaitForSeconds(1.5f);
 
             // --- F 스킬 연동 부분 ---
-            if (PlayerSkills.Instance != null && PlayerSkills.Instance.isF_Active)
+            if (PlayerSkills_BloodMage.Instance != null && PlayerSkills_BloodMage.Instance.isF_Active)
             {
-                float dist = Vector3.Distance(transform.position, PlayerSkills.Instance.transform.position);
-                if (dist <= PlayerSkills.Instance.fRange)
+                float dist = Vector3.Distance(transform.position, PlayerSkills_BloodMage.Instance.transform.position);
+                if (dist <= PlayerSkills_BloodMage.Instance.fRange)
                 {
-                    var streamRenderer = PlayerSkills.Instance.GetComponent<BloodStreamRenderer>();
+                    var streamRenderer = PlayerSkills_BloodMage.Instance.GetComponent<BloodStreamRenderer>();
                     if (streamRenderer != null)
                     {
                         // 플레이어에게 피를 발사
@@ -81,10 +81,10 @@ public class BleedStatus : MonoBehaviour
     void Update()
     {
         // F 스킬 사거리 내에 있으면 타이머 고정
-        if (PlayerSkills.Instance != null && PlayerSkills.Instance.isF_Active)
+        if (PlayerSkills_BloodMage.Instance != null && PlayerSkills_BloodMage.Instance.isF_Active)
         {
-            float dist = Vector3.Distance(transform.position, PlayerSkills.Instance.transform.position);
-            if (dist <= PlayerSkills.Instance.fRange && currentStacks > 0)
+            float dist = Vector3.Distance(transform.position, PlayerSkills_BloodMage.Instance.transform.position);
+            if (dist <= PlayerSkills_BloodMage.Instance.fRange && currentStacks > 0)
             {
                 timer = duration;
             }

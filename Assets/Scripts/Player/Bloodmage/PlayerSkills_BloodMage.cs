@@ -2,9 +2,9 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
 
-public class PlayerSkills : MonoBehaviour
+public class PlayerSkills_BloodMage : MonoBehaviour
 {
-    public static PlayerSkills Instance;
+    public static PlayerSkills_BloodMage Instance;
     public PlayerStats stats;
     public GameObject qPrefab, wBudPrefab, wPetalPrefab;
     public Transform qSocket;
