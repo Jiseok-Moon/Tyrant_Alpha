@@ -48,15 +48,35 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.F) && timerF <= 0) UseF();
     }
 
+    [Header("시전 중 이동 제어")]
+    public bool isCasting = false;
+
     #region Q 스킬: [징벌] (2연타 콤보)
     public void UseQ()
     {
+        if (isCasting) return; // 이미 다른 스킬이나 Q를 쓰는 중이면 무시
+
         timerQ = cdQ;
         anim.SetTrigger("Skill_Q");
 
-        // 타격 성공 시 신앙심 수급 (예시: +15)
+        // 0.8초 동안 이동을 멈추고 제자리에 고정 (애니메이션 길이에 맞춰 조절)
+        StartCoroutine(LockMovementForDuration(1.55f));
+
         AddFaith(15f);
         Debug.Log("Q 스킬 [징벌] 시전!");
+    }
+
+    private IEnumerator LockMovementForDuration(float duration)
+    {
+        isCasting = true;
+
+        // 플레이어 이동 스크립트가 있다면 여기서 이동을 끕니다.
+        // 예: GetComponent<PlayerMovement>().enabled = false;
+
+        yield return new WaitForSeconds(duration);
+
+        isCasting = false;
+        // 예: GetComponent<PlayerMovement>().enabled = true;
     }
     #endregion
 
@@ -93,9 +113,12 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
     #region E 스킬: [이단 구속] (제자리 사슬 투척)
     public void UseE()
     {
+        if (isCasting) return;
+
         timerE = cdE;
         anim.SetTrigger("Skill_E");
 
+        StartCoroutine(LockMovementForDuration(1.01f)); // E 스킬 시전 동안 제자리 고정
         StartCoroutine(ExecuteHook());
         Debug.Log("E 스킬 [이단 구속] 시전!");
     }
@@ -112,9 +135,12 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
     #region R 스킬: [심판] (회전 난무 / 광역 대미지)
     public void UseR()
     {
+        if (isCasting) return;
+
         timerR = cdR;
         anim.SetTrigger("Skill_R");
 
+        StartCoroutine(LockMovementForDuration(2.1f)); // R 스킬 시전 동안 제자리 고정 (애니메이션 길이에 맞춰 수치 조절)
         StartCoroutine(ExecuteSmash());
         Debug.Log("R 스킬 [심판] 시전!");
     }
@@ -122,7 +148,7 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
     private IEnumerator ExecuteSmash()
     {
         // 한 바퀴 크~게 휘두르는 타이밍에 맞춰 묵직한 대미지 (예: 0.4초 후)
-        yield return new WaitForSeconds(0.4f);
+        yield return new WaitForSeconds(1.07f);
 
         // 신앙심 대량 수급
         AddFaith(30f);
@@ -133,22 +159,20 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
     #region F 스킬: [폭발하는 신념] (신앙심 소모 광역 기절)
     public void UseF()
     {
-        // 신앙심이 일정량 이상일 때만 발동 가능 (예: 최소 20 이상)
-        if (currentFaith < 20f)
+        if (currentFaith < 20f || isCasting)
         {
-            Debug.Log("신앙심이 부족합니다!");
+            Debug.Log("신앙심이 부족하거나 시전 중입니다!");
             return;
         }
 
         timerF = cdF;
         anim.SetTrigger("Skill_F");
 
-        // 쌓인 신앙심을 모두 소모하여 방어막 변환 및 광역 기절
+        StartCoroutine(LockMovementForDuration(2.11f)); // F 스킬 시전 동안 제자리 고정
+
         float consumedFaith = currentFaith;
         currentFaith = 0f;
-
         Debug.Log($"F 스킬 [폭발하는 신념] 시전! (소모된 신앙심: {consumedFaith})");
-        // TODO: consumedFaith 비례 광역 기절 및 보호막 생성 로직
     }
     #endregion
 

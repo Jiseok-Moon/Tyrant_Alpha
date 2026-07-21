@@ -5393,6 +5393,7 @@ GameObject:
   - component: {fileID: 1312617204}
   - component: {fileID: 1312617205}
   - component: {fileID: 1312617206}
+  - component: {fileID: 1312617207}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -5621,6 +5622,26 @@ MonoBehaviour:
   speedBuffSlot: {fileID: 1904656211}
   damageBuffSlot: {fileID: 392832754}
   damageMultiplier: 1
+--- !u!114 &1312617207
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1312617192}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7b1042d3dc910d540b6ddfc2ea8f0092, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  maxFaith: 50
+  currentFaith: 0
+  cdQ: 0
+  cdW: 6
+  cdE: 8
+  cdR: 15
+  cdF: 20
+  isCasting: 0
 --- !u!1 &1370430321
 GameObject:
   m_ObjectHideFlags: 0
