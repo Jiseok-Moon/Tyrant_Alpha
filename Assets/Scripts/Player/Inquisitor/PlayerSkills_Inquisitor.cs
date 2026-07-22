@@ -16,9 +16,13 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
 
     private float timerQ, timerW, timerE, timerR, timerF;
 
-    [Header("컴포넌트 참조")]
+    [Header("컴포넌트 및 레이어 참조")]
+    public LayerMask floorLayer; // 바닥 레이어 (Inspector에서 설정 안 할 시 전체 대상 반응)
     private Animator anim;
-    private CharacterController controller; // 이동 및 돌진용 (없으면 자동 생략 가능)
+    private CharacterController controller; // 이동 및 돌진용
+
+    [Header("시전 중 이동 제어")]
+    public bool isCasting = false;
 
     private void Awake()
     {
@@ -35,7 +39,7 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
         if (timerR > 0) timerR -= Time.deltaTime;
         if (timerF > 0) timerF -= Time.deltaTime;
 
-        // 키 입력 테스트 (필요시 인풋 매니저와 연동)
+        // 키 입력 테스트
         HandleSkillInputs();
     }
 
@@ -48,65 +52,93 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.F) && timerF <= 0) UseF();
     }
 
-    [Header("시전 중 이동 제어")]
-    public bool isCasting = false;
-
-    #region Q 스킬: [징벌] (2연타 콤보)
-    public void UseQ()
+    // [핵심] 마우스 위치를 향해 즉시 회전하고, 그 바라보는 방향 Vector3를 반환
+    private Vector3 RotateToMouseAndGetDirection()
     {
-        if (isCasting) return; // 이미 다른 스킬이나 Q를 쓰는 중이면 무시
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
 
-        timerQ = cdQ;
-        anim.SetTrigger("Skill_Q");
+        bool hitSuccess = (floorLayer.value != 0)
+            ? Physics.Raycast(ray, out RaycastHit hit, 100f, floorLayer)
+            : Physics.Raycast(ray, out hit, 100f);
 
-        // 0.8초 동안 이동을 멈추고 제자리에 고정 (애니메이션 길이에 맞춰 조절)
-        StartCoroutine(LockMovementForDuration(1.55f));
+        if (hitSuccess)
+        {
+            // Y축(높이) 차이로 인해 캐릭터가 위아래로 기우는 것을 방지
+            Vector3 targetPoint = new Vector3(hit.point.x, transform.position.y, hit.point.z);
+            Vector3 direction = (targetPoint - transform.position).normalized;
 
-        AddFaith(15f);
-        Debug.Log("Q 스킬 [징벌] 시전!");
+            if (direction != Vector3.zero)
+            {
+                transform.rotation = Quaternion.LookRotation(direction);
+                return direction; // 마우스 방향 반환
+            }
+        }
+
+        return transform.forward; // Raycast 실패 시 현재 전방 반환
     }
 
     private IEnumerator LockMovementForDuration(float duration)
     {
         isCasting = true;
-
-        // 플레이어 이동 스크립트가 있다면 여기서 이동을 끕니다.
-        // 예: GetComponent<PlayerMovement>().enabled = false;
-
         yield return new WaitForSeconds(duration);
-
         isCasting = false;
-        // 예: GetComponent<PlayerMovement>().enabled = true;
+    }
+
+    #region Q 스킬: [징벌] (2연타 콤보)
+    public void UseQ()
+    {
+        if (isCasting) return;
+
+        RotateToMouseAndGetDirection(); // 마우스 방향 바라보기
+
+        timerQ = cdQ;
+        anim.SetTrigger("Skill_Q");
+
+        StartCoroutine(LockMovementForDuration(1.55f));
+
+        AddFaith(15f);
+        Debug.Log("Q 스킬 [징벌] 시전!");
     }
     #endregion
 
-    #region W 스킬: [방패 돌파] (하체 무빙 + 상체 방패)
+    #region W 스킬: [방패 돌파] (가만히 서 있을 때 빙글빙글 도는 문제 해결)
     public void UseW()
     {
+        if (isCasting) return;
+
+        // 1. 마우스 방향으로 돌아보고, 돌진할 '고정 방향'을 미리 추출
+        Vector3 dashDirection = RotateToMouseAndGetDirection();
+
         timerW = cdW;
         anim.SetTrigger("Skill_W");
 
-        StartCoroutine(DashRoutine(0.5f, 12f)); // 0.5초 동안 속도 12로 돌진
+        // 2. 미리 구해둔 고정 방향(dashDirection)으로 돌진 실행!
+        StartCoroutine(DashRoutine(1.11f, 5f, dashDirection));
         Debug.Log("W 스킬 [방패 돌파] 시전!");
     }
 
-    private IEnumerator DashRoutine(float duration, float speed)
+    private IEnumerator DashRoutine(float duration, float speed, Vector3 direction)
     {
+        isCasting = true;
+
         float elapsed = 0f;
         while (elapsed < duration)
         {
+            // 시전 순간 고정된 direction 방향으로 일직선 돌진
             if (controller != null && controller.enabled)
             {
-                controller.Move(transform.forward * speed * Time.deltaTime);
+                controller.Move(direction * speed * Time.deltaTime);
             }
             else
             {
-                transform.position += transform.forward * speed * Time.deltaTime;
+                transform.position += direction * speed * Time.deltaTime;
             }
 
             elapsed += Time.deltaTime;
             yield return null;
         }
+
+        isCasting = false;
     }
     #endregion
 
@@ -115,42 +147,42 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
     {
         if (isCasting) return;
 
+        RotateToMouseAndGetDirection(); // 마우스 방향 바라보기
+
         timerE = cdE;
         anim.SetTrigger("Skill_E");
 
-        StartCoroutine(LockMovementForDuration(1.01f)); // E 스킬 시전 동안 제자리 고정
+        StartCoroutine(LockMovementForDuration(1.01f));
         StartCoroutine(ExecuteHook());
         Debug.Log("E 스킬 [이단 구속] 시전!");
     }
 
     private IEnumerator ExecuteHook()
     {
-        // 왼손을 뻗는 모션 타이밍에 맞춰 사슬 발사 (0.2초 딜레이)
         yield return new WaitForSeconds(0.2f);
-
         // TODO: 사슬 이펙트 생성 및 타겟 당기기 / 날아가기 판정 실행
     }
     #endregion
 
-    #region R 스킬: [심판] (회전 난무 / 광역 대미지)
+    #region R 스킬: [심판] (점프 내리찍기 / 광역 대미지)
     public void UseR()
     {
         if (isCasting) return;
 
+        RotateToMouseAndGetDirection(); // 마우스 방향 바라보기
+
         timerR = cdR;
         anim.SetTrigger("Skill_R");
 
-        StartCoroutine(LockMovementForDuration(2.1f)); // R 스킬 시전 동안 제자리 고정 (애니메이션 길이에 맞춰 수치 조절)
+        StartCoroutine(LockMovementForDuration(3.02f)); // 애니메이션 길이에 맞춰 조정 필요
         StartCoroutine(ExecuteSmash());
         Debug.Log("R 스킬 [심판] 시전!");
     }
 
     private IEnumerator ExecuteSmash()
     {
-        // 한 바퀴 크~게 휘두르는 타이밍에 맞춰 묵직한 대미지 (예: 0.4초 후)
-        yield return new WaitForSeconds(1.07f);
+        yield return new WaitForSeconds(1.06f); // 내리찍는 타격 순간에 대미지
 
-        // 신앙심 대량 수급
         AddFaith(30f);
         // TODO: 주변 360도 범위 대미지(80) 및 카메라 흔들림 처리
     }
@@ -165,10 +197,12 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
             return;
         }
 
+        RotateToMouseAndGetDirection(); // 마우스 방향 바라보기
+
         timerF = cdF;
         anim.SetTrigger("Skill_F");
 
-        StartCoroutine(LockMovementForDuration(2.11f)); // F 스킬 시전 동안 제자리 고정
+        StartCoroutine(LockMovementForDuration(2.11f));
 
         float consumedFaith = currentFaith;
         currentFaith = 0f;
