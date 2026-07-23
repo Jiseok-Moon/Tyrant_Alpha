@@ -24,6 +24,10 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
     [Header("시전 중 이동 제어")]
     public bool isCasting = false;
 
+    [Header("E 스킬 에셋")]
+    public GameObject chainPrefab;     // 방금 만든 E_ChainProjectile 프리팹
+    public Transform chainSpawnPoint; // 캐릭터 손 위치 (없으면 플레이어 중심에서 발사)
+
     private void Awake()
     {
         anim = GetComponent<Animator>();
@@ -147,20 +151,37 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
     {
         if (isCasting) return;
 
-        RotateToMouseAndGetDirection(); // 마우스 방향 바라보기
+        // 1. 마우스 위치를 즉시 바라보게 회전
+        RotateToMouseAndGetDirection();
 
         timerE = cdE;
         anim.SetTrigger("Skill_E");
 
         StartCoroutine(LockMovementForDuration(1.01f));
         StartCoroutine(ExecuteHook());
-        Debug.Log("E 스킬 [이단 구속] 시전!");
     }
 
     private IEnumerator ExecuteHook()
     {
+        // 모션 타이밍에 맞춰 선회 한 번 더 체크
+        RotateToMouseAndGetDirection();
+
         yield return new WaitForSeconds(0.2f);
-        // TODO: 사슬 이펙트 생성 및 타겟 당기기 / 날아가기 판정 실행
+
+        // 손 위치가 지정되어 있다면 해당 위치, 없으면 캐릭터 위치 기준
+        Vector3 spawnPos = (chainSpawnPoint != null) ? chainSpawnPoint.position : transform.position + Vector3.up * 1f;
+
+        if (chainPrefab != null)
+        {
+            // 캐릭터가 마우스를 바라본 '현재 회전값'으로 사슬 소환
+            GameObject chainObj = Instantiate(chainPrefab, spawnPos, transform.rotation);
+
+            ChainProjectile chain = chainObj.GetComponent<ChainProjectile>();
+            if (chain != null)
+            {
+                chain.Initialize(transform);
+            }
+        }
     }
     #endregion
 
@@ -174,7 +195,7 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
         timerR = cdR;
         anim.SetTrigger("Skill_R");
 
-        StartCoroutine(LockMovementForDuration(3.02f)); // 애니메이션 길이에 맞춰 조정 필요
+        StartCoroutine(LockMovementForDuration(2.13f)); // 애니메이션 길이에 맞춰 조정 필요
         StartCoroutine(ExecuteSmash());
         Debug.Log("R 스킬 [심판] 시전!");
     }
