@@ -3,18 +3,18 @@ using UnityEngine;
 
 public class PlayerSkills_Inquisitor : MonoBehaviour
 {
+    public static PlayerSkills_Inquisitor Instance { get; private set; }
+
     [Header("기본 성향 및 자원")]
     public float maxFaith = 50f;
     public float currentFaith = 0f;
 
     [Header("스킬 쿨타임 (초)")]
-    public float cdQ = 3f;
-    public float cdW = 6f;
-    public float cdE = 8f;
-    public float cdR = 15f;
-    public float cdF = 20f;
-
-    private float timerQ, timerW, timerE, timerR, timerF;
+    public float cdQ = 0f;
+    public float cdW = 8f;
+    public float cdE = 4f;
+    public float cdR = 20f;
+    public float cdF = 5f;
 
     [Header("컴포넌트 및 레이어 참조")]
     public LayerMask floorLayer; // 바닥 레이어 (Inspector에서 설정 안 할 시 전체 대상 반응)
@@ -28,8 +28,17 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
     public GameObject chainPrefab;     // 방금 만든 E_ChainProjectile 프리팹
     public Transform chainSpawnPoint; // 캐릭터 손 위치 (없으면 플레이어 중심에서 발사)
 
+
+    [HideInInspector] public float timerQ;
+    [HideInInspector] public float timerW;
+    [HideInInspector] public float timerE;
+    [HideInInspector] public float timerR;
+    [HideInInspector] public float timerF;
+
     private void Awake()
     {
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
         anim = GetComponent<Animator>();
         controller = GetComponent<CharacterController>();
     }
@@ -163,23 +172,20 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
 
     private IEnumerator ExecuteHook()
     {
-        // 모션 타이밍에 맞춰 선회 한 번 더 체크
         RotateToMouseAndGetDirection();
 
         yield return new WaitForSeconds(0.2f);
 
-        // 손 위치가 지정되어 있다면 해당 위치, 없으면 캐릭터 위치 기준
         Vector3 spawnPos = (chainSpawnPoint != null) ? chainSpawnPoint.position : transform.position + Vector3.up * 1f;
 
         if (chainPrefab != null)
         {
-            // 캐릭터가 마우스를 바라본 '현재 회전값'으로 사슬 소환
             GameObject chainObj = Instantiate(chainPrefab, spawnPos, transform.rotation);
 
             ChainProjectile chain = chainObj.GetComponent<ChainProjectile>();
             if (chain != null)
             {
-                chain.Initialize(transform);
+                chain.Initialize(transform); // 손 인자 없이 캐릭터 Transform만 넘김!
             }
         }
     }
