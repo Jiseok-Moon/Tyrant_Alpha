@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-public class PlayerStats_Inquisitor : MonoBehaviour
+public class PlayerStats : MonoBehaviour
 {
     public float maxHp = 100f;
     public float currentHp;
