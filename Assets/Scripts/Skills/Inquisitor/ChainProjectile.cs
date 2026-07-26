@@ -6,32 +6,34 @@ public class ChainProjectile : MonoBehaviour
 {
     [Header("사슬 에셋 참조")]
     public GameObject chainSegmentPrefab; // 3D 사슬 고리 프리팹
-    [Header("위치/간격 세팅")]
-    public float segmentSpacing = 0.25f; // 사슬 고리 간격 (0.3~0.4 추천)
-    public Vector3 segmentOffset = Vector3.zero; // 높이 미세조정용
+    public float segmentSpacing = 0.35f;   // 사슬 고리 간격 (0.3~0.4 권장)
 
-    private Vector3 spawnOriginPos; // 발사할 때의 손 위치 저장
+    [Header("위치/회전 세팅")]
+    public Vector3 segmentOffset = Vector3.zero; // 오프셋 미세조정용
 
     [Header("스킬 옵션")]
     public float flySpeed = 20f;          // 뻗어나가는 속도
     public float pullSpeed = 18f;         // 당겨오는 속도
-    public float maxDistance = 7f;        // 짧은 사거리 (약 7m)
+    public float maxDistance = 7f;        // 짧은 사거리 (7m)
 
     private Transform casterTransform;
-    private Vector3 startPosition;
     private bool isReturning = false;
     private Transform hitEnemy = null;
 
-    // 생성된 사슬 고리 마디들을 담아둘 리스트
     private List<GameObject> spawnedSegments = new List<GameObject>();
     private Vector3 lastSegmentPos;
+    private bool rotateSegment = false;
+
+    // 고정해둘 위치 데이터
+    private Vector3 spawnOriginPos; // 발사 시점 좌표
+    private float fixedYHeight;     // 발사될 때 고정된 Y 높이
+
+    private Vector3 flyDirection;
 
     public void Initialize(Transform caster)
     {
         casterTransform = caster;
 
-        // 중요: 플레이어 스킬 스크립트에서 손 위치(chainSpawnPoint)를 넘겨주는 것이 좋습니다.
-        // 만약 안 넘겨주면, 현재 캐릭터 가슴 높이를 시작점으로 잡습니다.
         PlayerSkills_Inquisitor player = caster.GetComponent<PlayerSkills_Inquisitor>();
         if (player != null && player.chainSpawnPoint != null)
         {
@@ -39,11 +41,22 @@ public class ChainProjectile : MonoBehaviour
         }
         else
         {
-            spawnOriginPos = caster.position + Vector3.up * 1f; // 가슴 높이 기본값
+            spawnOriginPos = caster.position + Vector3.up * 1.0f;
         }
 
-        startPosition = transform.position; // 갈고리의 현재 위치
-        lastSegmentPos = spawnOriginPos; // 첫 마디 기준은 손 위치!
+        fixedYHeight = spawnOriginPos.y;
+
+        // 시작 위치 높이 강제 수평 고정
+        Vector3 startPos = transform.position;
+        startPos.y = fixedYHeight;
+        transform.position = startPos;
+
+        // 발사 방향을 3D 상의 완전한 수평(Y = 0) 정면으로 고정!
+        flyDirection = transform.forward;
+        flyDirection.y = 0;
+        flyDirection.Normalize();
+
+        lastSegmentPos = transform.position;
     }
 
     private void Update()
@@ -52,26 +65,24 @@ public class ChainProjectile : MonoBehaviour
 
         if (isReturning)
         {
-            // 복귀 목표점 좌표 계산 (캐릭터 위치 기반)
-            // 만약 지정된 spawnOriginPos의 Y 높이가 있다면, 그 높이를 유지하면서 복귀하도록 처리!
-            Vector3 returnTarget = casterTransform.position;
-            returnTarget.y = startPosition.y; // 발사될 때와 동일한 Y 높이로 고정!
+            // [핵심] 캐릭터나 손의 흔들리는 실시간 위치를 추적하지 않고,
+            // 사슬 고리들이 생성되었던 최초 시작 지점(spawnOriginPos)으로 일직선 복귀!
+            Vector3 returnTarget = spawnOriginPos;
 
-            // 잡힌 적이 있다면 동일 높이 수준으로 당김
+            // 적이 잡혔다면 최초 발사 지점으로 당김
             if (hitEnemy != null)
             {
-                Vector3 enemyTarget = returnTarget;
-                hitEnemy.position = Vector3.MoveTowards(hitEnemy.position, enemyTarget, pullSpeed * Time.deltaTime);
+                hitEnemy.position = Vector3.MoveTowards(hitEnemy.position, returnTarget, pullSpeed * Time.deltaTime);
             }
 
-            // 갈고리 헤드 복귀 (Y 높이 변화 없이 수평으로 촤르륵 돌아옴)
+            // 갈고리 헤드가 사슬 고리 라인을 '역방향 일직선'으로 따라 복귀!
             transform.position = Vector3.MoveTowards(transform.position, returnTarget, pullSpeed * Time.deltaTime);
 
-            // 지나온 사슬 마디 정제
+            // 복귀하면서 지나친 사슬 고리 제거 (이전과 동일)
             CleanUpSegments();
 
-            // 목표 지점에 도달하면 파괴
-            if (Vector3.Distance(transform.position, returnTarget) < 0.5f)
+            // 최초 발사 위치(고리 시작점)에 도달하면 소멸
+            if (Vector3.Distance(transform.position, returnTarget) < 0.3f)
             {
                 DestroyAllSegments();
                 Destroy(gameObject);
@@ -79,52 +90,41 @@ public class ChainProjectile : MonoBehaviour
         }
         else
         {
-            // [발사 단계] 전방 이동
-            transform.Translate(Vector3.forward * flySpeed * Time.deltaTime, Space.Self);
+            // [발사 단계] 고정된 수평 방향(flyDirection)으로 날아감
+            transform.position += flyDirection * flySpeed * Time.deltaTime;
 
-            // 사슬 마디 생성 체크
+            Vector3 currentPos = transform.position;
+            currentPos.y = fixedYHeight;
+            transform.position = currentPos;
+
             SpawnChainSegment();
 
-            // 최대 사거리 도달 시 회수
-            if (Vector3.Distance(startPosition, transform.position) >= maxDistance)
+            if (Vector3.Distance(spawnOriginPos, transform.position) >= maxDistance)
             {
                 isReturning = true;
             }
         }
     }
 
-    // 홀수/짝수 번째마다 회전을 바꿔주기 위한 플래그 변수 (클래스 상단 변수에 추가하거나 함수 내부 처리)
-    private bool rotateSegment = false;
-
-    // 3D 사슬 고리 생성 함수
     private void SpawnChainSegment()
     {
         if (chainSegmentPrefab == null) return;
 
-        // 1. 갈고리가 손(spawnOriginPos)으로부터 얼마나 멀어졌는지 계산
         float distFromStart = Vector3.Distance(spawnOriginPos, transform.position);
-
-        // 2. 만약 거리가 segmentSpacing보다 짧다면, 아직 첫 고리를 생성할 때가 아님
         if (distFromStart < segmentSpacing) return;
 
-        // 3. 발사 방향(Vector) 계산
+        float lastSegmentDist = Vector3.Distance(spawnOriginPos, lastSegmentPos);
         Vector3 direction = (transform.position - spawnOriginPos).normalized;
 
-        // 4. [보간 채우기] 마지막 생성 위치부터 현재 갈고리 직전까지를 채웁니다.
-        // 마지막 생성 마디가 갈고리 뒤에 생성되도록 보정
-        float lastSegmentDist = Vector3.Distance(spawnOriginPos, lastSegmentPos);
-
-        // 마지막 생성 마디와 갈고리 사이 거리가 spacing보다 크면, 그 사이에 생성
         while (distFromStart - lastSegmentDist >= segmentSpacing)
         {
-            // 손에서부터 정확한 Spacing 거리만큼 떨어진 좌표 계산!
-            lastSegmentDist += segmentSpacing; // 거리를 갱신
-            Vector3 spawnPos = spawnOriginPos + direction * lastSegmentDist;
+            lastSegmentDist += segmentSpacing;
 
-            // 높이 오프셋 적용
+            // Y 높이는 무조건 fixedYHeight로 일정하게 생성!
+            Vector3 spawnPos = spawnOriginPos + direction * lastSegmentDist;
+            spawnPos.y = fixedYHeight;
             spawnPos += transform.TransformDirection(segmentOffset);
 
-            // Z축 90도 교차 회전 적용
             Quaternion segmentRot = transform.rotation;
             if (rotateSegment)
             {
@@ -132,23 +132,19 @@ public class ChainProjectile : MonoBehaviour
             }
             rotateSegment = !rotateSegment;
 
-            // 생성
             GameObject segment = Instantiate(chainSegmentPrefab, spawnPos, segmentRot);
             spawnedSegments.Add(segment);
 
-            // 마지막 생성 위치 업데이트 (방향성 유지를 위해 dist 업데이트)
             lastSegmentPos = spawnPos;
         }
     }
 
-    // 복귀할 때 헤드보다 뒤에 있는(플레이어와 가까운) 마디부터 순차 삭제
     private void CleanUpSegments()
     {
         for (int i = spawnedSegments.Count - 1; i >= 0; i--)
         {
             if (spawnedSegments[i] != null)
             {
-                // 헤드가 플레이어 쪽으로 들어오면서 마디 위치를 지나치면 삭제
                 float distHeadToCaster = Vector3.Distance(transform.position, casterTransform.position);
                 float distSegmentToCaster = Vector3.Distance(spawnedSegments[i].transform.position, casterTransform.position);
 
@@ -177,8 +173,7 @@ public class ChainProjectile : MonoBehaviour
         if (other.CompareTag("Enemy"))
         {
             hitEnemy = other.transform;
-            isReturning = true; // 적중 즉시 당기기 시작
-            Debug.Log($"[이단 구속] {other.name} 낚아채기 성공!");
+            isReturning = true;
         }
     }
 }

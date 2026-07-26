@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-public class SkillCoolUI : MonoBehaviour
+public class SkillCoolUI_Bloodmage : MonoBehaviour
 {
     // [기획 의도] 스킬 가용 상태의 직관적 피드백 제공.
     // 쿨타임 오버레이(Fill Amount)와 남은 시간(Text)을 동시에 표시하여 
