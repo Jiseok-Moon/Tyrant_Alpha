@@ -3,61 +3,104 @@ using UnityEngine;
 
 public class PlayerSkills_Inquisitor : MonoBehaviour
 {
+    public static PlayerSkills_Inquisitor Instance;
+
     [Header("기본 성향 및 자원")]
     public float maxFaith = 50f;
     public float currentFaith = 0f;
 
-    [Header("스킬 쿨타임 (초)")]
-    public float cdQ = 3f;
-    public float cdW = 6f;
-    public float cdE = 8f;
-    public float cdR = 15f;
-    public float cdF = 20f;
+    [Header("스킬 쿨타임 (최대 초)")]
+    public float qMaxCD = 3f;
+    public float wMaxCD = 6f;
+    public float eMaxCD = 8f;
+    public float rMaxCD = 15f;
+    public float fMaxCD = 20f;
 
-    private float timerQ, timerW, timerE, timerR, timerF;
+    [Header("스킬 실시간 타이머 (UI 연동용)")]
+    public float qTimer;
+    public float wTimer;
+    public float eTimer;
+    public float rTimer;
+    public float fTimer;
+
+    [Header("커서 설정")]
+    public Texture2D normalCursor;
+    public Texture2D targetCursor;
+    public Vector2 cursorHotspot = new Vector2(16, 16);
 
     [Header("컴포넌트 및 레이어 참조")]
-    public LayerMask floorLayer; // 바닥 레이어 (Inspector에서 설정 안 할 시 전체 대상 반응)
-    private Animator anim;
-    private CharacterController controller; // 이동 및 돌진용
+    public LayerMask floorLayer; // 바닥 레이어
+    public Animator anim;
+    public CharacterController controller; // 이동 및 돌진용
 
     [Header("시전 중 이동 제어")]
     public bool isCasting = false;
+    private Coroutine activeSkillCoroutine;
+
+    // 혈마법사 스크립트와 동일한 캐스팅 상태 체크 프로퍼티
+    public bool IsCasting => activeSkillCoroutine != null || isCasting;
 
     [Header("E 스킬 에셋")]
-    public GameObject chainPrefab;     // 방금 만든 E_ChainProjectile 프리팹
-    public Transform chainSpawnPoint; // 캐릭터 손 위치 (없으면 플레이어 중심에서 발사)
+    public GameObject chainPrefab;     // E_ChainProjectile 프리팹
+    public Transform chainSpawnPoint; // 캐릭터 손 위치
 
     private void Awake()
     {
-        anim = GetComponent<Animator>();
-        controller = GetComponent<CharacterController>();
+        Instance = this;
+        if (anim == null) anim = GetComponent<Animator>();
+        if (controller == null) controller = GetComponent<CharacterController>();
     }
 
     private void Update()
     {
-        // 쿨타임 타이머 감소
-        if (timerQ > 0) timerQ -= Time.deltaTime;
-        if (timerW > 0) timerW -= Time.deltaTime;
-        if (timerE > 0) timerE -= Time.deltaTime;
-        if (timerR > 0) timerR -= Time.deltaTime;
-        if (timerF > 0) timerF -= Time.deltaTime;
+        // 1. 쿨타임 타이머 감소
+        HandleTimers();
 
-        // 키 입력 테스트
+        // 2. 마우스 타겟 감지 및 커서 비주얼 업데이트 (BloodMage 방식 연동)
+        bool hasTarget = GetTarget(10000f, out RaycastHit hit);
+        UpdateCursorVisual(hasTarget);
+
+        // 3. 키 입력 처리
         HandleSkillInputs();
+    }
+
+    private void HandleTimers()
+    {
+        if (qTimer > 0) qTimer -= Time.deltaTime;
+        if (wTimer > 0) wTimer -= Time.deltaTime;
+        if (eTimer > 0) eTimer -= Time.deltaTime;
+        if (rTimer > 0) rTimer -= Time.deltaTime;
+        if (fTimer > 0) fTimer -= Time.deltaTime;
     }
 
     private void HandleSkillInputs()
     {
-        if (Input.GetKeyDown(KeyCode.Q) && timerQ <= 0) UseQ();
-        if (Input.GetKeyDown(KeyCode.W) && timerW <= 0) UseW();
-        if (Input.GetKeyDown(KeyCode.E) && timerE <= 0) UseE();
-        if (Input.GetKeyDown(KeyCode.R) && timerR <= 0) UseR();
-        if (Input.GetKeyDown(KeyCode.F) && timerF <= 0) UseF();
+        if (Input.GetKeyDown(KeyCode.Q) && qTimer <= 0) UseQ();
+        if (Input.GetKeyDown(KeyCode.W) && wTimer <= 0) UseW();
+        if (Input.GetKeyDown(KeyCode.E) && eTimer <= 0) UseE();
+        if (Input.GetKeyDown(KeyCode.R) && rTimer <= 0) UseR();
+        if (Input.GetKeyDown(KeyCode.F) && fTimer <= 0) UseF();
     }
 
-    // [핵심] 마우스 위치를 향해 즉시 회전하고, 그 바라보는 방향 Vector3를 반환
-    private Vector3 RotateToMouseAndGetDirection()
+    #region 커서 및 타겟 감지 (BloodMage 공통)
+    private bool GetTarget(float range, out RaycastHit hit)
+    {
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        if (Physics.Raycast(ray, out hit, 100f))
+        {
+            return (hit.collider.CompareTag("Enemy") && Vector3.Distance(transform.position, hit.collider.transform.position) <= range);
+        }
+        return false;
+    }
+
+    private void UpdateCursorVisual(bool canTarget)
+    {
+        Cursor.SetCursor(canTarget ? targetCursor : normalCursor, cursorHotspot, CursorMode.Auto);
+    }
+    #endregion
+
+    // 마우스 위치를 향해 즉시 회전하고, 그 바라보는 방향 Vector3를 반환
+    public Vector3 RotateToMouseAndGetDirection()
     {
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
 
@@ -67,18 +110,17 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
 
         if (hitSuccess)
         {
-            // Y축(높이) 차이로 인해 캐릭터가 위아래로 기우는 것을 방지
             Vector3 targetPoint = new Vector3(hit.point.x, transform.position.y, hit.point.z);
             Vector3 direction = (targetPoint - transform.position).normalized;
 
             if (direction != Vector3.zero)
             {
                 transform.rotation = Quaternion.LookRotation(direction);
-                return direction; // 마우스 방향 반환
+                return direction;
             }
         }
 
-        return transform.forward; // Raycast 실패 시 현재 전방 반환
+        return transform.forward;
     }
 
     private IEnumerator LockMovementForDuration(float duration)
@@ -86,38 +128,37 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
         isCasting = true;
         yield return new WaitForSeconds(duration);
         isCasting = false;
+        activeSkillCoroutine = null;
     }
 
-    #region Q 스킬: [징벌] (2연타 콤보)
+    #region Q 스킬: [징벌]
     public void UseQ()
     {
-        if (isCasting) return;
+        if (IsCasting) return;
 
-        RotateToMouseAndGetDirection(); // 마우스 방향 바라보기
+        RotateToMouseAndGetDirection();
 
-        timerQ = cdQ;
-        anim.SetTrigger("Skill_Q");
+        qTimer = qMaxCD;
+        if (anim != null) anim.SetTrigger("Skill_Q");
 
-        StartCoroutine(LockMovementForDuration(1.55f));
+        activeSkillCoroutine = StartCoroutine(LockMovementForDuration(1.55f));
 
         AddFaith(15f);
         Debug.Log("Q 스킬 [징벌] 시전!");
     }
     #endregion
 
-    #region W 스킬: [방패 돌파] (가만히 서 있을 때 빙글빙글 도는 문제 해결)
+    #region W 스킬: [방패 돌파]
     public void UseW()
     {
-        if (isCasting) return;
+        if (IsCasting) return;
 
-        // 1. 마우스 방향으로 돌아보고, 돌진할 '고정 방향'을 미리 추출
         Vector3 dashDirection = RotateToMouseAndGetDirection();
 
-        timerW = cdW;
-        anim.SetTrigger("Skill_W");
+        wTimer = wMaxCD;
+        if (anim != null) anim.SetTrigger("Skill_W");
 
-        // 2. 미리 구해둔 고정 방향(dashDirection)으로 돌진 실행!
-        StartCoroutine(DashRoutine(1.11f, 5f, dashDirection));
+        activeSkillCoroutine = StartCoroutine(DashRoutine(1.11f, 5f, dashDirection));
         Debug.Log("W 스킬 [방패 돌파] 시전!");
     }
 
@@ -128,7 +169,6 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < duration)
         {
-            // 시전 순간 고정된 direction 방향으로 일직선 돌진
             if (controller != null && controller.enabled)
             {
                 controller.Move(direction * speed * Time.deltaTime);
@@ -143,87 +183,92 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
         }
 
         isCasting = false;
+        activeSkillCoroutine = null;
     }
     #endregion
 
-    #region E 스킬: [이단 구속] (제자리 사슬 투척)
+    #region E 스킬: [이단 구속]
     public void UseE()
     {
-        if (isCasting) return;
+        if (IsCasting) return;
 
-        // 1. 마우스 위치를 즉시 바라보게 회전
         RotateToMouseAndGetDirection();
 
-        timerE = cdE;
-        anim.SetTrigger("Skill_E");
+        eTimer = eMaxCD;
+        if (anim != null) anim.SetTrigger("Skill_E");
 
-        StartCoroutine(LockMovementForDuration(1.01f));
-        StartCoroutine(ExecuteHook());
+        activeSkillCoroutine = StartCoroutine(ExecuteHookRoutine());
     }
 
-    private IEnumerator ExecuteHook()
+    private IEnumerator ExecuteHookRoutine()
     {
-        // 모션 타이밍에 맞춰 선회 한 번 더 체크
+        isCasting = true;
+
         RotateToMouseAndGetDirection();
 
         yield return new WaitForSeconds(0.2f);
 
-        // 손 위치가 지정되어 있다면 해당 위치, 없으면 캐릭터 위치 기준
         Vector3 spawnPos = (chainSpawnPoint != null) ? chainSpawnPoint.position : transform.position + Vector3.up * 1f;
 
         if (chainPrefab != null)
         {
-            // 캐릭터가 마우스를 바라본 '현재 회전값'으로 사슬 소환
             GameObject chainObj = Instantiate(chainPrefab, spawnPos, transform.rotation);
-
             ChainProjectile chain = chainObj.GetComponent<ChainProjectile>();
             if (chain != null)
             {
                 chain.Initialize(transform);
             }
         }
+
+        yield return new WaitForSeconds(0.81f);
+        isCasting = false;
+        activeSkillCoroutine = null;
     }
     #endregion
 
-    #region R 스킬: [심판] (점프 내리찍기 / 광역 대미지)
+    #region R 스킬: [심판]
     public void UseR()
     {
-        if (isCasting) return;
+        if (IsCasting) return;
 
-        RotateToMouseAndGetDirection(); // 마우스 방향 바라보기
+        RotateToMouseAndGetDirection();
 
-        timerR = cdR;
-        anim.SetTrigger("Skill_R");
+        rTimer = rMaxCD;
+        if (anim != null) anim.SetTrigger("Skill_R");
 
-        StartCoroutine(LockMovementForDuration(2.13f)); // 애니메이션 길이에 맞춰 조정 필요
-        StartCoroutine(ExecuteSmash());
+        activeSkillCoroutine = StartCoroutine(ExecuteSmashRoutine());
         Debug.Log("R 스킬 [심판] 시전!");
     }
 
-    private IEnumerator ExecuteSmash()
+    private IEnumerator ExecuteSmashRoutine()
     {
-        yield return new WaitForSeconds(1.06f); // 내리찍는 타격 순간에 대미지
+        isCasting = true;
+
+        yield return new WaitForSeconds(1.06f);
 
         AddFaith(30f);
-        // TODO: 주변 360도 범위 대미지(80) 및 카메라 흔들림 처리
+
+        yield return new WaitForSeconds(1.07f);
+        isCasting = false;
+        activeSkillCoroutine = null;
     }
     #endregion
 
-    #region F 스킬: [폭발하는 신념] (신앙심 소모 광역 기절)
+    #region F 스킬: [폭발하는 신념]
     public void UseF()
     {
-        if (currentFaith < 20f || isCasting)
+        if (currentFaith < 20f || IsCasting)
         {
             Debug.Log("신앙심이 부족하거나 시전 중입니다!");
             return;
         }
 
-        RotateToMouseAndGetDirection(); // 마우스 방향 바라보기
+        RotateToMouseAndGetDirection();
 
-        timerF = cdF;
-        anim.SetTrigger("Skill_F");
+        fTimer = fMaxCD;
+        if (anim != null) anim.SetTrigger("Skill_F");
 
-        StartCoroutine(LockMovementForDuration(2.11f));
+        activeSkillCoroutine = StartCoroutine(LockMovementForDuration(2.11f));
 
         float consumedFaith = currentFaith;
         currentFaith = 0f;

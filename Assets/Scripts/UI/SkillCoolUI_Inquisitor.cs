@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-public class SkillCoolUI : MonoBehaviour
+public class SkillCoolUI_Inquisitor : MonoBehaviour
 {
     // [기획 의도] 스킬 가용 상태의 직관적 피드백 제공.
     // 쿨타임 오버레이(Fill Amount)와 남은 시간(Text)을 동시에 표시하여 
@@ -13,9 +13,9 @@ public class SkillCoolUI : MonoBehaviour
     public Image coolOverlay;
     public TextMeshProUGUI coolText;
 
-    private PlayerSkills_BloodMage player;
+    private PlayerSkills_Inquisitor player;
 
-    void Start() => player = PlayerSkills_BloodMage.Instance;
+    void Start() => player = PlayerSkills_Inquisitor.Instance;
 
     void Update()
     {
