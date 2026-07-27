@@ -179,7 +179,21 @@ public class Enemy : MonoBehaviour
         }
         if (hp <= 0) Die();
     }
+    public virtual void TakeDamage(float amount, GameObject attacker)
+    {
+        if (isDead) return;
 
+        if (attacker != null)
+        {
+            PlayerSkills_Inquisitor inquisitor = attacker.GetComponent<PlayerSkills_Inquisitor>();
+            if (inquisitor != null)
+            {
+                inquisitor.AddFaithByDamage(amount, 0.2f); // 20% 변환
+            }
+        }
+
+        TakeDamage(amount); // 기존 TakeDamage 실행
+    }
 
 
     private void HandleMovementAnimation()
@@ -220,19 +234,48 @@ public class Enemy : MonoBehaviour
         isAttacking = false;
     }
 
-    public void ApplyStasis(float duration) { StartCoroutine(StasisRoutine(duration)); }
+    public void ApplyStasis(float duration)
+    {
+        StartCoroutine(StasisRoutine(duration));
+    }
+
     private IEnumerator StasisRoutine(float duration)
     {
+        // 1. Stasis 플래그를 true로 변경하여 Update()에서 AI 추적/정찰이 다시 켜지는 것을 차단!
         isStasis = true;
-        if (agent != null && agent.enabled) { agent.isStopped = true; agent.velocity = Vector3.zero; }
-        if (anim != null) anim.speed = 0;
-        yield return new WaitForSeconds(duration);
-        if (!isDead)
+
+        // 2. Awake에서 찾아둔 anim 참조 활용 (없다면 자식에서 재탐색)
+        if (anim == null) anim = GetComponentInChildren<Animator>();
+
+        // 3. NavMeshAgent 완전 정지
+        if (agent != null && agent.enabled)
         {
-            if (anim != null) anim.speed = originalAnimSpeed;
-            if (agent != null && agent.enabled) agent.isStopped = false;
-            isStasis = false;
+            agent.isStopped = true;
+            agent.velocity = Vector3.zero;
         }
+
+        // 4. 애니메이션 빙결/정지
+        if (anim != null)
+        {
+            anim.speed = 0f;
+        }
+
+        // 5. 행동불능 지속시간 대기
+        yield return new WaitForSeconds(duration);
+
+        // 6. 상태 복구
+        if (anim != null)
+        {
+            anim.speed = originalAnimSpeed > 0 ? originalAnimSpeed : 1f;
+        }
+
+        if (agent != null && agent.enabled && !isDead)
+        {
+            agent.isStopped = false;
+        }
+
+        // 7. Update() 제어 해제
+        isStasis = false;
     }
 
     protected virtual IEnumerator HitAnimationRoutine()

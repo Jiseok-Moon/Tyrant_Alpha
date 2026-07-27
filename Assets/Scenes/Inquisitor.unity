@@ -2275,7 +2275,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 435133869}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cd498e496927ac841982c3804bca4991, type: 3}
+  m_Script: {fileID: 11500000, guid: ad9688edb6c37f44c8b9edae039619df, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   skillType: F
@@ -2475,7 +2475,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 519307123}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cd498e496927ac841982c3804bca4991, type: 3}
+  m_Script: {fileID: 11500000, guid: ad9688edb6c37f44c8b9edae039619df, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   skillType: E
@@ -3897,7 +3897,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 860084537}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cd498e496927ac841982c3804bca4991, type: 3}
+  m_Script: {fileID: 11500000, guid: ad9688edb6c37f44c8b9edae039619df, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   skillType: Q
@@ -4740,7 +4740,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 1086264384}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cd498e496927ac841982c3804bca4991, type: 3}
+  m_Script: {fileID: 11500000, guid: ad9688edb6c37f44c8b9edae039619df, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   skillType: W
@@ -5003,7 +5003,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 1149434178}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cd498e496927ac841982c3804bca4991, type: 3}
+  m_Script: {fileID: 11500000, guid: ad9688edb6c37f44c8b9edae039619df, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   skillType: R
@@ -5861,7 +5861,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 902ac7427d57687429b720eafc59e594, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxHp: 150
+  maxHp: 200
   currentHp: 0
   hpSlider: {fileID: 1270160967}
   hpText: {fileID: 623605558}
@@ -5869,6 +5869,8 @@ MonoBehaviour:
   currentFaith: 0
   faithSlider: {fileID: 815524538}
   faithText: {fileID: 398869285}
+  faithSliderFill: {fileID: 246485609}
+  shieldColor: {r: 0.5, g: 0.8, b: 1, a: 1}
   lerpSpeed: 5
 --- !u!114 &1312617201
 MonoBehaviour:
@@ -5974,13 +5976,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b1042d3dc910d540b6ddfc2ea8f0092, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxFaith: 50
-  currentFaith: 0
-  qMaxCD: 3
-  wMaxCD: 6
-  eMaxCD: 8
-  rMaxCD: 15
-  fMaxCD: 20
+  qDamagePerHit: 16
+  wDamage: 16
+  eDamage: 8
+  rDamage: 80
+  qMaxCD: 0
+  wMaxCD: 8
+  eMaxCD: 4
+  rMaxCD: 20
+  fMaxCD: 5
   qTimer: 0
   wTimer: 0
   eTimer: 0
@@ -5992,7 +5996,7 @@ MonoBehaviour:
   floorLayer:
     serializedVersion: 2
     m_Bits: 8
-  anim: {fileID: 2012131906}
+  anim: {fileID: 1312617205}
   controller: {fileID: 0}
   isCasting: 0
   chainPrefab: {fileID: 3803331768619057923, guid: b38d680714fa7914b9e6c40861407923,
@@ -7170,12 +7174,6 @@ Transform:
 --- !u!4 &2012131905 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6502182839619065283, guid: b84bd5a6a556c14439eaf40d4f1de760,
-    type: 3}
-  m_PrefabInstance: {fileID: 2012131902}
-  m_PrefabAsset: {fileID: 0}
---- !u!95 &2012131906 stripped
-Animator:
-  m_CorrespondingSourceObject: {fileID: 5866666021909216657, guid: b84bd5a6a556c14439eaf40d4f1de760,
     type: 3}
   m_PrefabInstance: {fileID: 2012131902}
   m_PrefabAsset: {fileID: 0}

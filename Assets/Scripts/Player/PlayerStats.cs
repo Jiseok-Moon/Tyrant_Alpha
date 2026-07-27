@@ -16,6 +16,12 @@ public class PlayerStats : MonoBehaviour
     public Slider faithSlider;
     public TextMeshProUGUI faithText;
 
+    [Header("이단심판관 전용: 방어막 UI 색상 설정")]
+    public Image faithSliderFill;                                // FaithSlider의 'Fill' Image 컴포넌트
+    private Color originalFaithColor;                            // Awake에서 기존 색상(연한 회색) 자동 기록
+    public Color shieldColor = new Color(0.5f, 0.8f, 1f, 1f);    // 방어막 전환 시 연한 하늘색
+    private bool isShieldActive = false;                         // 방어막 활성화 여부
+
     [Header("공통 UI 설정")]
     public float lerpSpeed = 5f;
     private bool isDead = false;
@@ -25,6 +31,12 @@ public class PlayerStats : MonoBehaviour
         currentHp = maxHp;
         currentFaith = 0f; // 신앙심 초기화
         isDead = false;
+
+        // 기존 Fill 이미지의 기본 색상(연한 회색) 자동 저장
+        if (faithSliderFill != null)
+        {
+            originalFaithColor = faithSliderFill.color;
+        }
 
         // HP 슬라이더 초기화
         if (hpSlider != null)
@@ -92,8 +104,9 @@ public class PlayerStats : MonoBehaviour
     {
         if (isDead) return;
 
-        // 1. 신앙심(보호막)이 남아있다면 신앙심부터 차감
-        if (currentFaith > 0)
+        // [수정] 단순히 currentFaith > 0 인 것만 체크하는 것이 아니라,
+        // F 스킬 사용 후 '방어막 상태(isShieldActive == true)'일 때만 신앙심을 차감합니다!
+        if (isShieldActive && currentFaith > 0)
         {
             if (currentFaith >= damage)
             {
@@ -105,9 +118,15 @@ public class PlayerStats : MonoBehaviour
                 damage -= currentFaith;
                 currentFaith = 0;
             }
+
+            // 보호막을 모두 소모했으면 방어막 상태 해제 및 원래 신앙심 색상(연한 회색)으로 복구
+            if (currentFaith <= 0)
+            {
+                SetShieldState(false);
+            }
         }
 
-        // 2. 보호막을 뚫고 남은 데미지가 있다면 HP 차감
+        // 2. 방어막 상태가 아니거나, 보호막을 뚫고 남은 데미지가 있다면 HP 차감
         if (damage > 0)
         {
             currentHp -= damage;
@@ -126,7 +145,29 @@ public class PlayerStats : MonoBehaviour
     }
     #endregion
 
-    #region 이단심판관: 신앙심(Faith) 제어 함수
+    #region 이단심판관: 신앙심(Faith) 및 방어막 UI 제어 함수
+    // 방어막 상태 변경 시 UI 색상 전환 (연회색 <-> 연하늘색)
+    public void SetShieldState(bool active)
+    {
+        isShieldActive = active;
+
+        if (faithSliderFill != null)
+        {
+            // 방어막 활성화 시: 연한 하늘색 (R: 128, G: 200, B: 255, A: 255)
+            // 비활성화 시: 기존 연한 회색 (R: 200, G: 200, B: 200, A: 255)
+            Color targetColor = isShieldActive ? new Color(0.5f, 0.8f, 1f, 1f) : new Color(0.8f, 0.8f, 0.8f, 1f);
+
+            faithSliderFill.color = targetColor;
+
+            // Canvas/UI 강제 갱신
+            faithSliderFill.SetVerticesDirty();
+        }
+        else
+        {
+            Debug.LogWarning("[PlayerStats] faithSliderFill 이 연결되어 있지 않습니다!");
+        }
+    }
+
     public void AddFaith(float amount)
     {
         currentFaith = Mathf.Clamp(currentFaith + amount, 0f, maxFaith);

@@ -10,6 +10,8 @@ GameObject:
   m_Component:
   - component: {fileID: 36009011434595473}
   - component: {fileID: -5696902067530732141}
+  - component: {fileID: 8709350532959098116}
+  - component: {fileID: 2953827765776026477}
   m_Layer: 0
   m_Name: ChainProjectile
   m_TagString: Untagged
@@ -45,6 +47,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 918318f1e50b6f843a429f7808be91c1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  damage: 0
   chainSegmentPrefab: {fileID: 3884199339140817556, guid: f05a0e94ced937147b5c89b58d81bace,
     type: 3}
   segmentSpacing: 0.25
@@ -52,6 +55,56 @@ MonoBehaviour:
   flySpeed: 12
   pullSpeed: 12
   maxDistance: 4
+--- !u!136 &8709350532959098116
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3803331768619057923}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.1
+  m_Height: 0.45
+  m_Direction: 2
+  m_Center: {x: 0, y: -0.03, z: 0.13}
+--- !u!54 &2953827765776026477
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3803331768619057923}
+  serializedVersion: 4
+  m_Mass: 1
+  m_Drag: 0
+  m_AngularDrag: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 0
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!1001 &5515802254903745619
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -1,20 +1,25 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 
 public class PlayerSkills_Inquisitor : MonoBehaviour
 {
     public static PlayerSkills_Inquisitor Instance;
 
-    [Header("기본 성향 및 자원")]
-    public float maxFaith = 50f;
-    public float currentFaith = 0f;
+    [Header("스킬 피해량 설정")]
+    [Tooltip("Q스킬 1회 타격당 피해량 (총 2타 시전)")]
+    public float qDamagePerHit = 16f;
+    public float wDamage = 8f;
+    public float eDamage = 4f;
+    public float rDamage = 80f;
 
     [Header("스킬 쿨타임 (최대 초)")]
-    public float qMaxCD = 3f;
-    public float wMaxCD = 6f;
-    public float eMaxCD = 8f;
-    public float rMaxCD = 15f;
-    public float fMaxCD = 20f;
+    public float qMaxCD = 0f;
+    public float wMaxCD = 8f;
+    public float eMaxCD = 4f;
+    public float rMaxCD = 20f;
+    public float fMaxCD = 5f;
 
     [Header("스킬 실시간 타이머 (UI 연동용)")]
     public float qTimer;
@@ -29,38 +34,38 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
     public Vector2 cursorHotspot = new Vector2(16, 16);
 
     [Header("컴포넌트 및 레이어 참조")]
-    public LayerMask floorLayer; // 바닥 레이어
+    public LayerMask floorLayer;
     public Animator anim;
-    public CharacterController controller; // 이동 및 돌진용
+    public CharacterController controller;
+    private NavMeshAgent agent;
+    private PlayerStats stats;
 
     [Header("시전 중 이동 제어")]
     public bool isCasting = false;
     private Coroutine activeSkillCoroutine;
 
-    // 혈마법사 스크립트와 동일한 캐스팅 상태 체크 프로퍼티
     public bool IsCasting => activeSkillCoroutine != null || isCasting;
 
     [Header("E 스킬 에셋")]
-    public GameObject chainPrefab;     // E_ChainProjectile 프리팹
-    public Transform chainSpawnPoint; // 캐릭터 손 위치
+    public GameObject chainPrefab;
+    public Transform chainSpawnPoint;
 
     private void Awake()
     {
         Instance = this;
-        if (anim == null) anim = GetComponent<Animator>();
+        if (anim == null) anim = GetComponentInChildren<Animator>();
         if (controller == null) controller = GetComponent<CharacterController>();
+        agent = GetComponent<NavMeshAgent>();
+        stats = GetComponent<PlayerStats>();
     }
 
     private void Update()
     {
-        // 1. 쿨타임 타이머 감소
         HandleTimers();
 
-        // 2. 마우스 타겟 감지 및 커서 비주얼 업데이트 (BloodMage 방식 연동)
         bool hasTarget = GetTarget(10000f, out RaycastHit hit);
         UpdateCursorVisual(hasTarget);
 
-        // 3. 키 입력 처리
         HandleSkillInputs();
     }
 
@@ -82,7 +87,7 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.F) && fTimer <= 0) UseF();
     }
 
-    #region 커서 및 타겟 감지 (BloodMage 공통)
+    #region 커서 및 타겟 감지
     private bool GetTarget(float range, out RaycastHit hit)
     {
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
@@ -99,7 +104,6 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
     }
     #endregion
 
-    // 마우스 위치를 향해 즉시 회전하고, 그 바라보는 방향 Vector3를 반환
     public Vector3 RotateToMouseAndGetDirection()
     {
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
@@ -123,15 +127,26 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
         return transform.forward;
     }
 
-    private IEnumerator LockMovementForDuration(float duration)
+    private void DealAreaDamage(Vector3 centerPoint, float radius, float damage)
     {
-        isCasting = true;
-        yield return new WaitForSeconds(duration);
-        isCasting = false;
-        activeSkillCoroutine = null;
+        Collider[] hitEnemies = Physics.OverlapSphere(centerPoint, radius);
+
+        foreach (Collider col in hitEnemies)
+        {
+            if (col.CompareTag("Enemy"))
+            {
+                Enemy enemy = col.GetComponent<Enemy>();
+                if (enemy == null) enemy = col.GetComponentInParent<Enemy>();
+
+                if (enemy != null)
+                {
+                    enemy.TakeDamage(damage, gameObject);
+                }
+            }
+        }
     }
 
-    #region Q 스킬: [징벌]
+    #region Q 스킬: [징벌] (2연타 - 0.8초, 1.4초 / 반경 3.5m)
     public void UseQ()
     {
         if (IsCasting) return;
@@ -141,14 +156,26 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
         qTimer = qMaxCD;
         if (anim != null) anim.SetTrigger("Skill_Q");
 
-        activeSkillCoroutine = StartCoroutine(LockMovementForDuration(1.55f));
+        activeSkillCoroutine = StartCoroutine(ExecuteQRoutine());
+    }
 
-        AddFaith(15f);
-        Debug.Log("Q 스킬 [징벌] 시전!");
+    private IEnumerator ExecuteQRoutine()
+    {
+        isCasting = true;
+
+        yield return new WaitForSeconds(0.8f);
+        DealAreaDamage(transform.position + transform.forward * 1.5f, 3.5f, qDamagePerHit);
+
+        yield return new WaitForSeconds(0.6f);
+        DealAreaDamage(transform.position + transform.forward * 1.5f, 3.5f, qDamagePerHit);
+
+        yield return new WaitForSeconds(0.15f);
+        isCasting = false;
+        activeSkillCoroutine = null;
     }
     #endregion
 
-    #region W 스킬: [방패 돌파]
+    #region W 스킬: [방패 돌파] (NavMesh 위치 동기화 및 부드러운 돌진)
     public void UseW()
     {
         if (IsCasting) return;
@@ -159,28 +186,63 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
         if (anim != null) anim.SetTrigger("Skill_W");
 
         activeSkillCoroutine = StartCoroutine(DashRoutine(1.11f, 5f, dashDirection));
-        Debug.Log("W 스킬 [방패 돌파] 시전!");
     }
 
     private IEnumerator DashRoutine(float duration, float speed, Vector3 direction)
     {
         isCasting = true;
+        HashSet<GameObject> hitEnemies = new HashSet<GameObject>();
+
+        // anim.SetBool("IsDashing", true); 삭제 (SetTrigger("Skill_W")는 UseW()에서 이미 실행됨)
+
+        // NavMeshAgent 오버라이드 해제 준비
+        if (agent != null && agent.enabled)
+        {
+            agent.isStopped = true;
+            agent.updatePosition = false;
+        }
 
         float elapsed = 0f;
         while (elapsed < duration)
         {
+            Vector3 moveDelta = direction * speed * Time.deltaTime;
+
             if (controller != null && controller.enabled)
             {
-                controller.Move(direction * speed * Time.deltaTime);
+                controller.Move(moveDelta);
             }
             else
             {
-                transform.position += direction * speed * Time.deltaTime;
+                transform.position += moveDelta;
+            }
+
+            // 돌진 중 관통 타격 판정
+            Collider[] hits = Physics.OverlapSphere(transform.position + transform.forward * 0.8f, 1.2f);
+            foreach (var hit in hits)
+            {
+                if (hit.CompareTag("Enemy") && !hitEnemies.Contains(hit.gameObject))
+                {
+                    hitEnemies.Add(hit.gameObject);
+                    Enemy enemy = hit.GetComponent<Enemy>() ?? hit.GetComponentInParent<Enemy>();
+                    if (enemy != null)
+                    {
+                        enemy.TakeDamage(wDamage, gameObject);
+                    }
+                }
             }
 
             elapsed += Time.deltaTime;
             yield return null;
         }
+
+        // NavMeshAgent 위치 재동기화
+        if (agent != null && agent.enabled)
+        {
+            agent.Warp(transform.position);
+            agent.updatePosition = true;
+        }
+
+        // anim.SetBool("IsDashing", false); 삭제
 
         isCasting = false;
         activeSkillCoroutine = null;
@@ -204,8 +266,6 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
     {
         isCasting = true;
 
-        RotateToMouseAndGetDirection();
-
         yield return new WaitForSeconds(0.2f);
 
         Vector3 spawnPos = (chainSpawnPoint != null) ? chainSpawnPoint.position : transform.position + Vector3.up * 1f;
@@ -216,6 +276,7 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
             ChainProjectile chain = chainObj.GetComponent<ChainProjectile>();
             if (chain != null)
             {
+                chain.damage = eDamage;
                 chain.Initialize(transform);
             }
         }
@@ -226,7 +287,7 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
     }
     #endregion
 
-    #region R 스킬: [심판]
+    #region R 스킬: [심판] (1.06초 타격 / 반경 5.0m)
     public void UseR()
     {
         if (IsCasting) return;
@@ -237,7 +298,6 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
         if (anim != null) anim.SetTrigger("Skill_R");
 
         activeSkillCoroutine = StartCoroutine(ExecuteSmashRoutine());
-        Debug.Log("R 스킬 [심판] 시전!");
     }
 
     private IEnumerator ExecuteSmashRoutine()
@@ -245,8 +305,7 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
         isCasting = true;
 
         yield return new WaitForSeconds(1.06f);
-
-        AddFaith(30f);
+        DealAreaDamage(transform.position + transform.forward * 2.0f, 5.0f, rDamage);
 
         yield return new WaitForSeconds(1.07f);
         isCasting = false;
@@ -257,30 +316,78 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
     #region F 스킬: [폭발하는 신념]
     public void UseF()
     {
-        if (currentFaith < 20f || IsCasting)
-        {
-            Debug.Log("신앙심이 부족하거나 시전 중입니다!");
-            return;
-        }
+        if (IsCasting) return;
 
         RotateToMouseAndGetDirection();
 
         fTimer = fMaxCD;
         if (anim != null) anim.SetTrigger("Skill_F");
 
-        activeSkillCoroutine = StartCoroutine(LockMovementForDuration(2.11f));
+        activeSkillCoroutine = StartCoroutine(ExecuteFRoutine());
+    }
 
-        float consumedFaith = currentFaith;
-        currentFaith = 0f;
-        Debug.Log($"F 스킬 [폭발하는 신념] 시전! (소모된 신앙심: {consumedFaith})");
+    private IEnumerator ExecuteFRoutine()
+    {
+        isCasting = true;
+
+        float consumedFaith = (stats != null) ? stats.ConsumeAllFaith() : 0f;
+        float stunDuration = Mathf.Clamp(0.5f + (consumedFaith / 10f) * 0.5f, 0.5f, 3.0f);
+
+        if (stats != null)
+        {
+            if (consumedFaith > 0)
+            {
+                stats.AddFaith(consumedFaith);
+            }
+
+            stats.SetShieldState(true);
+            StartCoroutine(ShieldTimerRoutine(5.0f));
+        }
+
+        yield return new WaitForSeconds(0.5f);
+
+        Collider[] hitEnemies = Physics.OverlapSphere(transform.position, 5.0f);
+        foreach (Collider col in hitEnemies)
+        {
+            if (col.CompareTag("Enemy"))
+            {
+                Enemy enemy = col.GetComponent<Enemy>();
+                if (enemy == null) enemy = col.GetComponentInParent<Enemy>();
+
+                if (enemy != null)
+                {
+                    enemy.ApplyStasis(stunDuration);
+                }
+            }
+        }
+
+        yield return new WaitForSeconds(1.11f);
+        isCasting = false;
+        activeSkillCoroutine = null;
+    }
+
+    private IEnumerator ShieldTimerRoutine(float duration)
+    {
+        yield return new WaitForSeconds(duration);
+
+        if (stats != null)
+        {
+            stats.SetShieldState(false);
+        }
     }
     #endregion
 
-    #region 자원(신앙심) 관리
+    #region 자원(신앙심) 연동
     public void AddFaith(float amount)
     {
-        currentFaith = Mathf.Clamp(currentFaith + amount, 0f, maxFaith);
-        Debug.Log($"현재 신앙심: {currentFaith} / {maxFaith}");
+        if (stats == null) stats = GetComponent<PlayerStats>();
+        if (stats != null) stats.AddFaith(amount);
+    }
+
+    public void AddFaithByDamage(float damageDealt, float ratio = 0.2f)
+    {
+        float faithToGain = damageDealt * ratio;
+        AddFaith(faithToGain);
     }
     #endregion
 }

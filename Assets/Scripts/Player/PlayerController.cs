@@ -20,21 +20,21 @@ public class PlayerController : MonoBehaviour
         inquisitorSkills = GetComponent<PlayerSkills_Inquisitor>();
         bloodMageSkills = GetComponent<PlayerSkills_BloodMage>();
 
-        agent.updateRotation = false;
+        if (agent != null) agent.updateRotation = false;
     }
 
     void Update()
     {
-        // 1. 이단심판관 전용: 스킬 시전 중일 때는 이동 정지 및 제자리 대기
-        if (inquisitorSkills != null && inquisitorSkills.isCasting)
+        // 1. 이단심판관 전용: 스킬 시전 중일 때는 이동 정지
+        if (inquisitorSkills != null && inquisitorSkills.IsCasting)
         {
             StopMovement();
 
-            // 스킬 시전 시 애니메이션 파라미터 즉시 0으로 초기화
+            // 스킬 시전 중에는 이동 Blend Tree 파라미터를 0으로 초기화
             if (anim != null)
             {
-                anim.SetFloat("InputX", 0f);
-                anim.SetFloat("InputZ", 0f);
+                anim.SetFloat("InputX", 0f, 0.05f, Time.deltaTime);
+                anim.SetFloat("InputZ", 0f, 0.05f, Time.deltaTime);
             }
             return;
         }
@@ -48,18 +48,25 @@ public class PlayerController : MonoBehaviour
         // 3. 우클릭 이동 처리
         if (Input.GetMouseButton(1)) MoveToMouse();
 
-        // 4. 이동 애니메이션 파라미터 전달 (원래대로 로컬 속도 계산 복원!)
-        if (anim != null && agent != null && agent.speed > 0f)
+        // 4. 이동 애니메이션 파라미터 전달 (로컬 속도 계산)
+        if (anim != null && agent != null)
         {
-            // 캐릭터 회전 기준 상대 속도 계산 (원래 잘 작동하던 코드)
-            Vector3 localVelocity = transform.InverseTransformDirection(agent.velocity);
+            // NavMeshAgent가 실제로 이동하고자 하는 목표 방향 속도 사용
+            Vector3 moveVelocity = agent.desiredVelocity;
 
-            float inputX = localVelocity.x / agent.speed;
-            float inputZ = localVelocity.z / agent.speed;
+            // 캐릭터 기준 로컬 방향으로 변환
+            Vector3 localVelocity = transform.InverseTransformDirection(moveVelocity);
 
-            // Damp Time을 0.05f로 살짝 좁혀 반응 속도를 극대화
-            anim.SetFloat("InputX", inputX, 0.05f, Time.deltaTime);
-            anim.SetFloat("InputZ", inputZ, 0.05f, Time.deltaTime);
+            // -1 ~ 1 사이 범위로 Clamp 처리 (0으로 나누기 연산 자체를 제거)
+            float inputX = Mathf.Clamp(localVelocity.x, -1f, 1f);
+            float inputZ = Mathf.Clamp(localVelocity.z, -1f, 1f);
+
+            // 혹시 모를 예외 대비 안전장치
+            if (float.IsNaN(inputX)) inputX = 0f;
+            if (float.IsNaN(inputZ)) inputZ = 0f;
+
+            anim.SetFloat("InputX", inputX, 0.1f, Time.deltaTime);
+            anim.SetFloat("InputZ", inputZ, 0.1f, Time.deltaTime);
         }
 
         // 5. 이동 중일 때만 이동 방향으로 자연스럽게 회전
@@ -78,12 +85,15 @@ public class PlayerController : MonoBehaviour
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         if (Physics.Raycast(ray, out RaycastHit hit, 100f, floorLayer))
         {
-            if (agent.isStopped)
+            if (agent != null)
             {
-                agent.isStopped = false;
+                if (agent.isStopped)
+                {
+                    agent.isStopped = false;
+                }
+                agent.SetDestination(hit.point);
+                currentState = PlayerState.Moving;
             }
-            agent.SetDestination(hit.point);
-            currentState = PlayerState.Moving;
         }
     }
 
