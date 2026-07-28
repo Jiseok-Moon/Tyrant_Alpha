@@ -6002,6 +6002,11 @@ MonoBehaviour:
   chainPrefab: {fileID: 3803331768619057923, guid: b38d680714fa7914b9e6c40861407923,
     type: 3}
   chainSpawnPoint: {fileID: 2012131905}
+  faithFXPrefab: {fileID: 995138603888606346, guid: 7dc780d8b3fb9a24cb57968a47a75b0f,
+    type: 3}
+  fSkillRadius: 5
+  fSkillDuration: 0.5
+  fSkillDelay: 0.15
 --- !u!1 &1370430321
 GameObject:
   m_ObjectHideFlags: 0

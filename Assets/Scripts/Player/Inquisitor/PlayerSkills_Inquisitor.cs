@@ -50,6 +50,12 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
     public GameObject chainPrefab;
     public Transform chainSpawnPoint;
 
+    [Header("Skill F (폭발하는 신념)")]
+    public GameObject faithFXPrefab;   // FX_FaithExplosion 프리팹
+    public float fSkillRadius = 3f;    // 폭발 이펙트 및 스킬 영향 범위 (반지름)
+    public float fSkillDuration = 0.4f; // 이펙트가 퍼지는 시간
+    public float fSkillDelay = 0.2f;  // 함성을 지르며 폭발하기까지의 딜레이 (0.15초)
+
     private void Awake()
     {
         Instance = this;
@@ -57,6 +63,16 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
         if (controller == null) controller = GetComponent<CharacterController>();
         agent = GetComponent<NavMeshAgent>();
         stats = GetComponent<PlayerStats>();
+
+        // 게임 시작 시 UpperBody 레이어 Weight를 0으로 강제 초기화
+        if (anim != null)
+        {
+            int upperLayerIndex = anim.GetLayerIndex("UpperBody");
+            if (upperLayerIndex != -1)
+            {
+                anim.SetLayerWeight(upperLayerIndex, 0f);
+            }
+        }
     }
 
     private void Update()
@@ -193,9 +209,13 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
         isCasting = true;
         HashSet<GameObject> hitEnemies = new HashSet<GameObject>();
 
-        // anim.SetBool("IsDashing", true); 삭제 (SetTrigger("Skill_W")는 UseW()에서 이미 실행됨)
+        // 1. W 스킬 시작시 상체 레이어 Weight = 1 (상체 방패 모션 덮어쓰기)
+        int upperLayerIndex = (anim != null) ? anim.GetLayerIndex("UpperBody") : -1;
+        if (upperLayerIndex != -1)
+        {
+            anim.SetLayerWeight(upperLayerIndex, 1f);
+        }
 
-        // NavMeshAgent 오버라이드 해제 준비
         if (agent != null && agent.enabled)
         {
             agent.isStopped = true;
@@ -208,15 +228,11 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
             Vector3 moveDelta = direction * speed * Time.deltaTime;
 
             if (controller != null && controller.enabled)
-            {
                 controller.Move(moveDelta);
-            }
             else
-            {
                 transform.position += moveDelta;
-            }
 
-            // 돌진 중 관통 타격 판정
+            // 돌진 타격 판정
             Collider[] hits = Physics.OverlapSphere(transform.position + transform.forward * 0.8f, 1.2f);
             foreach (var hit in hits)
             {
@@ -224,10 +240,7 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
                 {
                     hitEnemies.Add(hit.gameObject);
                     Enemy enemy = hit.GetComponent<Enemy>() ?? hit.GetComponentInParent<Enemy>();
-                    if (enemy != null)
-                    {
-                        enemy.TakeDamage(wDamage, gameObject);
-                    }
+                    if (enemy != null) enemy.TakeDamage(wDamage, gameObject);
                 }
             }
 
@@ -235,14 +248,17 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
             yield return null;
         }
 
-        // NavMeshAgent 위치 재동기화
         if (agent != null && agent.enabled)
         {
             agent.Warp(transform.position);
             agent.updatePosition = true;
         }
 
-        // anim.SetBool("IsDashing", false); 삭제
+        // 2. W 스킬 종료시 상체 레이어 Weight = 0 (원상 복구)
+        if (upperLayerIndex != -1)
+        {
+            anim.SetLayerWeight(upperLayerIndex, 0f);
+        }
 
         isCasting = false;
         activeSkillCoroutine = null;
@@ -330,6 +346,7 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
     {
         isCasting = true;
 
+        // 1. 신앙심 자원 소비 및 보호막 적용 계산
         float consumedFaith = (stats != null) ? stats.ConsumeAllFaith() : 0f;
         float stunDuration = Mathf.Clamp(0.5f + (consumedFaith / 10f) * 0.5f, 0.5f, 3.0f);
 
@@ -344,9 +361,24 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
             StartCoroutine(ShieldTimerRoutine(5.0f));
         }
 
-        yield return new WaitForSeconds(0.5f);
+        // 2. 0.15초 선딜레이 대기 (함성 모션 대기)
+        yield return new WaitForSeconds(fSkillDelay);
 
-        Collider[] hitEnemies = Physics.OverlapSphere(transform.position, 5.0f);
+        // 3. 0.15초 후 신앙심 폭발 이펙트 생성
+        if (faithFXPrefab != null)
+        {
+            Vector3 spawnPos = transform.position + Vector3.up * 0.5f;
+            GameObject fxObj = Instantiate(faithFXPrefab, spawnPos, Quaternion.identity);
+
+            FaithFX faithScript = fxObj.GetComponent<FaithFX>();
+            if (faithScript != null)
+            {
+                faithScript.PlayEffect(fSkillRadius, fSkillDuration);
+            }
+        }
+
+        // 4. 이펙트 생성 시점에 범위(fSkillRadius) 내 적들에게 CC기(기절/정지) 적용
+        Collider[] hitEnemies = Physics.OverlapSphere(transform.position, fSkillRadius);
         foreach (Collider col in hitEnemies)
         {
             if (col.CompareTag("Enemy"))
@@ -361,7 +393,10 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
             }
         }
 
-        yield return new WaitForSeconds(1.11f);
+        // 5. 모션 후딜레이 정리 (전체 딜레이에서 이미 소모한 fSkillDelay를 차감)
+        float remainingTime = Mathf.Max(0f, 1.11f - fSkillDelay);
+        yield return new WaitForSeconds(remainingTime);
+
         isCasting = false;
         activeSkillCoroutine = null;
     }
