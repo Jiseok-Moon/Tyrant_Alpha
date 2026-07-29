@@ -58,15 +58,28 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
 
     private void Awake()
     {
+        // 1. 싱글톤 정교화 (씬 재로드 대응)
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
         Instance = this;
-        if (anim == null) anim = GetComponentInChildren<Animator>();
-        if (controller == null) controller = GetComponent<CharacterController>();
+
+        // 2. 컴포넌트 안전 재참조
+        anim = GetComponentInChildren<Animator>();
+        controller = GetComponent<CharacterController>();
         agent = GetComponent<NavMeshAgent>();
         stats = GetComponent<PlayerStats>();
 
-        // 게임 시작 시 UpperBody 레이어 Weight를 0으로 강제 초기화
+        // 3. 상태 변수 강제 리셋 (재시작 시 멈춤 방지)
+        isCasting = false;
+        activeSkillCoroutine = null;
+
+        // 4. UpperBody 레이어 Weight 0으로 안전 초기화
         if (anim != null)
         {
+            anim.Rebind(); // 애니메이터 상태 완전 리셋
             int upperLayerIndex = anim.GetLayerIndex("UpperBody");
             if (upperLayerIndex != -1)
             {
@@ -425,4 +438,14 @@ public class PlayerSkills_Inquisitor : MonoBehaviour
         AddFaith(faithToGain);
     }
     #endregion
+    private void OnDestroy()
+    {
+        if (Instance == this)
+        {
+            Instance = null;
+        }
+
+        // 실행 중인 코루틴 강제 종료
+        StopAllCoroutines();
+    }
 }
